@@ -1,0 +1,52 @@
+{
+  "function": "filterLogEvents",
+  "case": "case-sensitive",
+  "operation": "FilterLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.FilterLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "filterPattern": "error",
+      "logStreamNames": [
+        "s1",
+        "s2"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "if2Ga0Poip4dN5OyXKMXX9sqfuThLhdeX7mHi6f2zmjCPvgjrEDv",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "415"
+    },
+    "body": {
+      "events": [
+        {
+          "eventId": "4",
+          "ingestionTime": 1795034976754,
+          "message": "{\"severity\":\"error\",\"body\":\"héllo ünïcode ✓ marker-0badc0de\",\"traceId\":\"0af7651916cd43dd8448eb211c80319c\"}",
+          "timestamp": 1795034917000,
+          "logStreamName": "s1"
+        }
+      ],
+      "nextToken": null,
+      "searchedLogStreams": [
+        {
+          "logStreamName": "s1",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "s2",
+          "searchedCompletely": true
+        }
+      ]
+    }
+  }
+}

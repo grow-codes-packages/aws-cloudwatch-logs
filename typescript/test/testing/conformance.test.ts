@@ -1,47 +1,65 @@
+// Service-owned: runs the shared conformance scenarios (core + logging) against the stateful fake
+// CloudWatch Logs (the Docker suite runs the same scenarios against Moto).
+
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CloudWatchLogsClient } from "../../src/client.js";
+import type { CloudWatchLogsClient } from "../../src/client.js";
+import type { BatchOptions } from "../../src/logging/index.js";
 import {
   type ConformanceOptions,
   conformanceCases,
   formatReport,
   runConformance,
 } from "../../src/testing/index.js";
-import { type MockServer, startServer } from "../helpers/server.js";
+import { testClient } from "../helpers/aws.js";
+import { startFakeLogs } from "../helpers/fake-logs.js";
 
 const scenariosDir = fileURLToPath(new URL("../../../conformance/scenarios/", import.meta.url));
-let server: MockServer;
+let fake: Awaited<ReturnType<typeof startFakeLogs>>;
+const clients: CloudWatchLogsClient[] = [];
 
 beforeAll(async () => {
-  server = await startServer((req) => {
-    if (req.url === "/health") return { status: 200, body: { status: "ok" } };
-    if (req.url === "/version") return { status: 200, body: { version: "0.0.1" } };
-    if (req.url === "/v1/ping") return { status: 200, body: {} };
-    return { status: 404 };
-  });
+  fake = await startFakeLogs();
 });
 
 afterAll(async () => {
-  await server.close();
+  await Promise.all(clients.map((c) => c.close()));
+  await fake.close();
 });
+
+function client(group?: string): CloudWatchLogsClient {
+  const c = testClient(fake, group === undefined ? {} : { logGroup: group });
+  clients.push(c);
+  return c;
+}
 
 function options(): ConformanceOptions {
   return {
     scenariosDir,
-    categories: ["core"],
+    categories: ["core", "logging"],
     factories: {
-      core: () => new CloudWatchLogsClient({ url: server.url, token: "conformance-token" }),
+      core: () => client(),
+      logging: (ctx) => {
+        const group = `conformance/${ctx.run}`;
+        fake.state.addGroup(group);
+        const c = client(group);
+        return {
+          client: c.logClient({ batch: ctx.batchOptions as BatchOptions }),
+          query: c.logQueryClient(),
+        };
+      },
     },
-    capabilities: { core: ["version"] },
+    capabilities: { core: [], logging: ["query"] },
   };
 }
 
-describe("conformance (core) against a local demo API", () => {
-  it("every core scenario passes", async () => {
+describe("conformance (core + logging) against the fake CloudWatch Logs", () => {
+  it("every scenario passes; serverVersion is skipped (no version)", async () => {
     const report = await runConformance(options());
     expect(report.failed, formatReport(report)).toBe(0);
-    expect(report.skipped).toBe(0);
-    expect(report.results.map((r) => r.id)).toContain("core.health");
+    expect(report.results.map((r) => r.id)).toEqual(
+      expect.arrayContaining(["core.health", "logging.roundtrip", "logging.batch", "logging.redaction"]),
+    );
   });
 
   for (const c of conformanceCases(options())) {

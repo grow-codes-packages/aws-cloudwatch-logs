@@ -1,0 +1,33 @@
+{
+  "function": "getLogEvents",
+  "case": "bad-token",
+  "operation": "GetLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.GetLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "s1",
+      "nextToken": "garbage"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "InvalidParameterException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "687zdl6K4TvYSUGnCcqjbrcf600wQIrv48ZGykSPXWKM81264D0M",
+      "content-length": "89"
+    },
+    "body": {
+      "__type": "InvalidParameterException",
+      "message": "The specified nextToken is invalid."
+    }
+  }
+}

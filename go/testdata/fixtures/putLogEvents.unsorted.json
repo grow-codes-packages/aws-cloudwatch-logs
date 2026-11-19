@@ -1,0 +1,42 @@
+{
+  "function": "putLogEvents",
+  "case": "unsorted",
+  "operation": "PutLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "s3",
+      "logEvents": [
+        {
+          "timestamp": 1795034915005,
+          "message": "b"
+        },
+        {
+          "timestamp": 1795034915000,
+          "message": "a"
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "InvalidParameterException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "I07JnJ7eCKbbRx6m9ELafK6Xt0hQEl1AWzkWbX9axt8SnfQPhjvk",
+      "content-length": "129"
+    },
+    "body": {
+      "__type": "InvalidParameterException",
+      "message": "Log events in a single PutLogEvents request must be in chronological order."
+    }
+  }
+}

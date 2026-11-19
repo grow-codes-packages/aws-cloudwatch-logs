@@ -6,7 +6,8 @@ and runs the integration and conformance tests with `node --test` against a real
 ```sh
 cd typescript && make pack            # writes dist/grow-codes-aws-cloudwatch-logs-<version>.tgz
 cd integration && npm run install-package
-GROW_AWS_CLOUDWATCH_LOGS_URL=http://127.0.0.1:<port> GROW_AWS_CLOUDWATCH_LOGS_TOKEN=... npm test
+GROW_AWS_CLOUDWATCH_LOGS_URL=http://127.0.0.1:<port> AWS_REGION=us-east-1 \
+  AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... CLOUDWATCH_LOG_GROUP=... npm test
 ```
 
 In CI and locally with Docker this runs inside `docker/Dockerfile.typescript`

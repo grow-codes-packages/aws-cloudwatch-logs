@@ -1,0 +1,26 @@
+{
+  "function": "ensureLogGroup",
+  "case": "bad-name-moto-accepts",
+  "operation": "CreateLogGroup",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.CreateLogGroup"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/bad name!"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "zcDniRYov85zq0ljRpdOIzZedarSV1M71qEVBODWizcpwn9akrMx",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "0"
+    },
+    "body": null
+  }
+}

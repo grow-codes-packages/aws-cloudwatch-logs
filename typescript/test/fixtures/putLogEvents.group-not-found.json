@@ -1,0 +1,38 @@
+{
+  "function": "putLogEvents",
+  "case": "group-not-found",
+  "operation": "PutLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/missing",
+      "logStreamName": "s1",
+      "logEvents": [
+        {
+          "timestamp": 1795034915000,
+          "message": "x"
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "ResourceNotFoundException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "zuOG7I0WK4TNwd0uiNBlxDi3dr0Z18zI30M2GVUiX04l0lVpFo6B",
+      "content-length": "93"
+    },
+    "body": {
+      "__type": "ResourceNotFoundException",
+      "message": "The specified log group does not exist."
+    }
+  }
+}

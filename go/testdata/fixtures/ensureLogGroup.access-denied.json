@@ -1,0 +1,27 @@
+{
+  "function": "ensureLogGroup",
+  "case": "access-denied",
+  "operation": "CreateLogGroup",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.CreateLogGroup"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/ro"
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "status": "403",
+      "x-amzn-requestid": "6hBrbpYPEWBaNj6d5QxvL2rIpZQ2viLDA5E0IkyrA8EShoY6xlEj",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "269"
+    },
+    "body": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<ErrorResponse><Errors><Error><Code>AccessDenied</Code><Message>User: arn:aws:iam::123456789012:user/grow-sdk-readonly is not authorized to perform: logs:CreateLogGroup</Message><Type>Sender</Type></Error></Errors></ErrorResponse>"
+  }
+}

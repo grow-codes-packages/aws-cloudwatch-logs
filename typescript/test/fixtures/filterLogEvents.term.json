@@ -1,0 +1,73 @@
+{
+  "function": "filterLogEvents",
+  "case": "term",
+  "operation": "FilterLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.FilterLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "filterPattern": "marker-0badc0de ERROR",
+      "startTime": 1795034915000,
+      "endTime": 1795034925000
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "3VL7xF25kvFVIkyhsEssy2iBDMA2wE84gnVnBeP6lUFubTqhJtx6",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "672"
+    },
+    "body": {
+      "events": [
+        {
+          "eventId": "3",
+          "ingestionTime": 1795034976754,
+          "message": "hello marker-0badc0de ERROR",
+          "timestamp": 1795034916000,
+          "logStreamName": "s1"
+        },
+        {
+          "eventId": "6",
+          "ingestionTime": 1795034976804,
+          "message": "other stream marker-0badc0de ERROR",
+          "timestamp": 1795034916500,
+          "logStreamName": "s2"
+        }
+      ],
+      "nextToken": null,
+      "searchedLogStreams": [
+        {
+          "logStreamName": "s1",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "s2",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "s3",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "bulk",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "bulk2",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "big",
+          "searchedCompletely": true
+        }
+      ]
+    }
+  }
+}
