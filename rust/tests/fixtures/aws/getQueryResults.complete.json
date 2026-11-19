@@ -1,0 +1,96 @@
+{
+  "function": "getQueryResults",
+  "case": "complete",
+  "operation": "GetQueryResults",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.GetQueryResults"
+    },
+    "body": {
+      "queryId": "9e4e6e71-0edf-1bf2-b267-9c7c4ffdc4e4"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "xujokYovCrJJeRwcGdTgpJcrdIpnmmqC7QI0Tmn3oFfV5tUn7tt8",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "533166"
+    },
+    "body": {
+      "results": [
+        [
+          {
+            "field": "@ptr",
+            "value": "7"
+          },
+          {
+            "field": "@timestamp",
+            "value": "1795034915000"
+          },
+          {
+            "field": "@message",
+            "value": "accepted"
+          },
+          {
+            "field": "@logStream",
+            "value": "s3"
+          },
+          {
+            "field": "@log",
+            "value": "cwlv-0badc0de/app"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20012"
+          },
+          {
+            "field": "@timestamp",
+            "value": "1795034915001"
+          },
+          {
+            "field": "@message",
+            "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...<truncated by fixture generator, original length 266240 chars>"
+          },
+          {
+            "field": "@logStream",
+            "value": "big"
+          },
+          {
+            "field": "@log",
+            "value": "cwlv-0badc0de/app"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20013"
+          },
+          {
+            "field": "@timestamp",
+            "value": "1795034915002"
+          },
+          {
+            "field": "@message",
+            "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...<truncated by fixture generator, original length 266240 chars>"
+          },
+          {
+            "field": "@logStream",
+            "value": "big"
+          },
+          {
+            "field": "@log",
+            "value": "cwlv-0badc0de/app"
+          }
+        ]
+      ],
+      "status": "Complete"
+    }
+  }
+}
