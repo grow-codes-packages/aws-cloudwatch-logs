@@ -49,63 +49,11 @@ use crate::core::{CommonConfig, Error, Hooks, Result};
 
 const LOG_TARGET: &str = "grow_aws_cloudwatch_logs::aws";
 
-static INSECURE_WARNING: std::sync::Once = std::sync::Once::new();
-
-fn read_file(path: &std::path::Path, what: &str) -> Result<Vec<u8>> {
-    std::fs::read(path)
-        .map_err(|e| Error::config(format!("{what} file cannot be read")).with_source(e))
-}
-
-/// The `reqwest` client with the TLS/proxy/timeout settings of `config`.
+/// The `reqwest` client with the TLS/proxy/connect-timeout settings of `config` (shared with the
+/// generated transport via [`crate::core::reqwest_client_builder`]); redirects are not followed.
 pub(crate) fn build_reqwest(config: &CommonConfig) -> Result<reqwest::Client> {
-    let mut builder = reqwest::Client::builder()
-        .no_proxy()
-        .connect_timeout(config.connect_timeout())
+    crate::core::reqwest_client_builder(config)?
         .redirect(reqwest::redirect::Policy::none())
-        .use_rustls_tls();
-    let tls = config.tls();
-    if tls.insecure_skip_verify {
-        INSECURE_WARNING.call_once(|| {
-            ::tracing::warn!(
-                target: LOG_TARGET,
-                "TLS certificate verification is disabled (insecure_skip_verify); use only in tests"
-            );
-        });
-        builder = builder.danger_accept_invalid_certs(true);
-    }
-    let mut ca_pem = Vec::new();
-    if let Some(path) = &tls.ca_cert_path {
-        ca_pem.extend(read_file(path, "CA certificate")?);
-        ca_pem.push(b'\n');
-    }
-    if let Some(pem) = &tls.ca_cert_pem {
-        ca_pem.extend_from_slice(pem.as_bytes());
-    }
-    if !ca_pem.is_empty() {
-        let certs = reqwest::Certificate::from_pem_bundle(&ca_pem)
-            .map_err(|e| Error::config("CA certificate is not valid PEM").with_source(e))?;
-        if certs.is_empty() {
-            return Err(Error::config("CA certificate contains no certificate"));
-        }
-        for cert in certs {
-            builder = builder.add_root_certificate(cert);
-        }
-    }
-    if let (Some(cert), Some(key)) = (&tls.client_cert_path, &tls.client_key_path) {
-        let mut pem = read_file(cert, "client certificate")?;
-        pem.push(b'\n');
-        pem.extend(read_file(key, "client key")?);
-        let identity = reqwest::Identity::from_pem(&pem).map_err(|e| {
-            Error::config("client certificate or key is not valid PEM").with_source(e)
-        })?;
-        builder = builder.identity(identity);
-    }
-    if let Some(proxy) = config.proxy() {
-        let proxy = reqwest::Proxy::all(proxy)
-            .map_err(|e| Error::config("proxy is not a valid URL").with_source(e.without_url()))?;
-        builder = builder.proxy(proxy);
-    }
-    builder
         .build()
         .map_err(|e| Error::config("cannot build the HTTP client").with_source(e.without_url()))
 }

@@ -9,6 +9,7 @@ limit; ``StopQuery`` is not implemented (HTTP 500 → ``UnavailableError``).
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import os
 import threading
@@ -136,10 +137,8 @@ def test_ingest_and_query_functions(
     assert [e.message.split()[0] for e in head] == ["first", "second", "third"]
     assert head[0].timestamp == base and "ünïcode ✓" in head[1].message
     assert len(list(client.get_log_events(group, "s1", limit=1))) == 1
-    assert (
-        len(list(client.get_log_events(group, "s1", start=base, end=base + timedelta(milliseconds=500))))
-        == 1
-    )
+    window = client.get_log_events(group, "s1", start=base, end=base + timedelta(milliseconds=500))
+    assert len(list(window)) == 1
 
     # filter_log_events: term, phrase over pages, limit, page API
     filtered = list(client.filter_log_events(group=group, streams=["s1"], pattern="ERROR"))
@@ -232,7 +231,7 @@ def test_logging_category(env: dict[str, str], prefix: str, groups: list[str]) -
         all_asc = collect(q, marker, "asc")
         assert len(all_desc) == len(all_asc) == 3
         assert sorted(r.body for r in all_desc) == sorted(r.body for r in all_asc)
-        assert all(a.timestamp >= b.timestamp for a, b in zip(all_desc, all_desc[1:]))
+        assert all(a.timestamp >= b.timestamp for a, b in itertools.pairwise(all_desc))
         streams = q.list_streams()
         assert {"logclient", "exporter"} <= set(streams)
         with pytest.raises(sdk.UnsupportedError):

@@ -698,7 +698,7 @@ Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) 
 ## Trademarks and disclaimer
 
 This is an independent, community-maintained project. It is **not affiliated with, endorsed or
-sponsored by Amazon.com, Inc. or its affiliates**. Amazon CloudWatch Logs is a trademark of Amazon.com, Inc. or its affiliates; it is used here only to name the
+sponsored by its owner (Amazon.com, Inc. or its affiliates)**. Amazon CloudWatch Logs is a trademark of Amazon.com, Inc. or its affiliates; it is used here only to name the
 service this SDK connects to. The Amazon CloudWatch Logs server is licensed separately by its owner
 (Proprietary managed service; AWS SDKs Apache-2.0).
 

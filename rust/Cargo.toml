@@ -23,7 +23,8 @@ path = "src/lib.rs"
 
 [features]
 default = ["tracing-layer", "log-bridge"]
-# Blocking wrapper (`blocking::CloudWatchLogsClient`) that owns a current-thread tokio runtime.
+# Blocking wrapper (`blocking::CloudWatchLogsClient`) that owns a one-worker multi-thread tokio
+# runtime (background batching and live-tail sessions keep running between blocking calls).
 blocking = []
 # In-memory fakes and the conformance runner (`testing` module).
 testing = []

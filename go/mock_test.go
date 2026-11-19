@@ -248,7 +248,7 @@ func wantErr(t *testing.T, err error, code ErrorCode) *Error {
 	return e
 }
 
-// newTestClient is used by the generated core tests: a client for url with
+// newTestClient (used by client_tls_test.go) returns a client for url with
 // static test credentials and fast retries; mutate adjusts the config.
 func newTestClient(t *testing.T, url string, mutate func(*Config)) *Client {
 	t.Helper()

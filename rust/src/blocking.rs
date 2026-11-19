@@ -26,6 +26,7 @@ impl CloudWatchLogsClient {
     pub fn new(config: CloudWatchLogsConfig) -> Result<Self> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
+            .thread_name("grow-aws-cloudwatch-logs-blocking")
             .enable_all()
             .build()
             .map_err(|e| Error::config("cannot start the tokio runtime").with_source(e))?;
