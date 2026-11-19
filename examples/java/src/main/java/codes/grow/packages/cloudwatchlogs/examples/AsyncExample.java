@@ -25,10 +25,15 @@ public final class AsyncExample {
           (latency, error) ->
               System.out.println(error == null ? "ping: " + latency : "ping failed: " + error));
 
+      // serverVersion is UNSUPPORTED: CloudWatch Logs exposes no server version.
+      client
+          .serverVersionAsync()
+          .whenComplete((v, e) -> System.out.println("server version: " + (e == null ? v : e)));
+
       // Cancelling a future aborts the HTTP exchange and any pending retry.
-      CompletableFuture<String> version = client.serverVersionAsync();
-      version.cancel(true);
-      System.out.println("version cancelled: " + version.isCancelled());
+      CompletableFuture<Duration> slow = client.pingAsync();
+      slow.cancel(true);
+      System.out.println("ping cancelled: " + slow.isCancelled());
     }
   }
 }

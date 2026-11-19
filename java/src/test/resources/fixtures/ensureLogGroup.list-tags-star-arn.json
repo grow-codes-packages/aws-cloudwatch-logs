@@ -1,0 +1,28 @@
+{
+  "function": "ensureLogGroup",
+  "case": "list-tags-star-arn",
+  "operation": "ListTagsForResource",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.ListTagsForResource"
+    },
+    "body": {
+      "resourceArn": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app:*"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "woPpve8i9bdI0EczqQzmgywIBEP5Fqmt8foW0REhB3tg4jt7mKsl",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "12"
+    },
+    "body": {
+      "tags": {}
+    }
+  }
+}

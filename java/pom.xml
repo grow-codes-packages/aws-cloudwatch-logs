@@ -60,6 +60,8 @@
     <opentelemetry.version>1.67.0</opentelemetry.version>
     <logback.version>1.6.6</logback.version>
     <log4j.version>2.26.1</log4j.version>
+    <!-- AWS SDK for Java v2 (SPEC section 2.3 "Cloud SDK services") -->
+    <awssdk.version>2.57.8</awssdk.version>
 
     <!-- test -->
     <junit.version>5.14.4</junit.version>
@@ -107,6 +109,13 @@
         <scope>import</scope>
       </dependency>
       <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${awssdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <version>${junit.version}</version>
@@ -121,6 +130,47 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!-- AWS SDK for Java v2: signing, serialisation, event streams and retries. The package brings
+         its own HTTP client on java.net.http (Grow TLS, proxy, hooks), so the SDK's Netty and Apache
+         clients are not needed. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>cloudwatchlogs</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache5-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- STS: assume-role credentials (roleArn) and the account id for live-tail ARNs -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sts</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache5-client</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- OpenTelemetry API: trace correlation for logs, span helpers for tracing -->
@@ -381,7 +431,9 @@
           <excludedScopes>test,provided,system</excludedScopes>
           <failOnMissing>true</failOnMissing>
           <failOnBlacklist>true</failOnBlacklist>
-          <includedLicenses>Apache-2.0|MIT|BSD-2-Clause|BSD-3-Clause|ISC|Zlib|Unicode-3.0|Unicode-DFS-2016|0BSD|CC0-1.0|MPL-2.0</includedLicenses>
+          <!-- MIT-0 (MIT No Attribution): org.reactivestreams:reactive-streams, required by the AWS SDK core;
+               more permissive than MIT (proposed for the SPEC allowlist, GRO-1375 report). -->
+          <includedLicenses>Apache-2.0|MIT|MIT-0|BSD-2-Clause|BSD-3-Clause|ISC|Zlib|Unicode-3.0|Unicode-DFS-2016|0BSD|CC0-1.0|MPL-2.0</includedLicenses>
           <licenseMerges>
             <licenseMerge>Apache-2.0|Apache License, Version 2.0|The Apache License, Version 2.0|The Apache Software License, Version 2.0|Apache License 2.0|Apache 2.0|Apache 2|Apache-2.0 License|Apache Software License - Version 2.0|ASL 2.0|ASF 2.0</licenseMerge>
             <licenseMerge>MIT|MIT License|The MIT License|The MIT License (MIT)</licenseMerge>
