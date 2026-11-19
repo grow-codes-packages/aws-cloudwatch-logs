@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/grow-codes-packages/aws-cloudwatch-logs/compare/rust-v0.1.0...rust-v0.1.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* sync aws-cloudwatch-logs to sdk-kit 0.3.0 (GRO-1375) ([#12](https://github.com/grow-codes-packages/aws-cloudwatch-logs/issues/12)) ([ceb8cc6](https://github.com/grow-codes-packages/aws-cloudwatch-logs/commit/ceb8cc624b159b8c0887e1b3fdb0f5e5beb50021))
+
 ## 0.1.0 (2026-11-19)
 
 
