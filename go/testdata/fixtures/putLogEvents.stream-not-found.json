@@ -1,0 +1,38 @@
+{
+  "function": "putLogEvents",
+  "case": "stream-not-found",
+  "operation": "PutLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "missing",
+      "logEvents": [
+        {
+          "timestamp": 1795034915000,
+          "message": "x"
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "ResourceNotFoundException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "yFLAsvlckziblKVZDk4SivAgCsbB8rWqs0O7lcYLI2H7CIZizLCd",
+      "content-length": "94"
+    },
+    "body": {
+      "__type": "ResourceNotFoundException",
+      "message": "The specified log stream does not exist."
+    }
+  }
+}

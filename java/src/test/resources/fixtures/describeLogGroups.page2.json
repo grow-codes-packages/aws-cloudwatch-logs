@@ -1,0 +1,41 @@
+{
+  "function": "describeLogGroups",
+  "case": "page2",
+  "operation": "DescribeLogGroups",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DescribeLogGroups"
+    },
+    "body": {
+      "logGroupNamePrefix": "cwlv-0badc0de/",
+      "limit": 1,
+      "nextToken": "eyJwYXJhbWV0ZXJDaGVja3N1bSI6IDQ4OTk4MjI3NDgxMjYyMzkzNDksICJ1bmlxdWVBdHRyaWJ1dGVzIjogImFybjphd3M6bG9nczp1cy1lYXN0LTE6MTIzNDU2Nzg5MDEyOmxvZy1ncm91cDpjd2x2LThiNWRhYWQ1L290aGVyIn0="
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "6NosYTaJPSgCtAGlhvwHqUEItyNLd9JwB1cY9m7jSfsItHUf56GY",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "401"
+    },
+    "body": {
+      "logGroups": [
+        {
+          "arn": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/other:*",
+          "logGroupArn": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/other",
+          "creationTime": 1795034976143,
+          "logGroupName": "cwlv-0badc0de/other",
+          "metricFilterCount": 0,
+          "storedBytes": 0,
+          "kmsKeyId": "arn:aws:kms:us-east-1:123456789012:key/00000000-0000-4000-8000-00000000c0de"
+        }
+      ],
+      "nextToken": null
+    }
+  }
+}

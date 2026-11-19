@@ -1,0 +1,39 @@
+{
+  "function": "ping",
+  "case": "ok",
+  "operation": "DescribeLogGroups",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DescribeLogGroups"
+    },
+    "body": {
+      "limit": 1
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "4eeIvPsOpTj2W2dXxsJGnqzbNu1OVbjs21Ij4Ez60nJP62ZTvtE3",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "334"
+    },
+    "body": {
+      "logGroups": [
+        {
+          "arn": "arn:aws:logs:us-east-1:123456789012:log-group:grow-bootstrap/seed:*",
+          "logGroupArn": "arn:aws:logs:us-east-1:123456789012:log-group:grow-bootstrap/seed",
+          "creationTime": 1795034972297,
+          "logGroupName": "grow-bootstrap/seed",
+          "metricFilterCount": 0,
+          "storedBytes": 150,
+          "retentionInDays": 7
+        }
+      ],
+      "nextToken": null
+    }
+  }
+}

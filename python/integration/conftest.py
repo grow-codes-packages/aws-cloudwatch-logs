@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def load_env() -> dict[str, str]:
             line = raw.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, _, value = line.partition("=")
-                env.setdefault(key.strip(), value.strip())
+                env.setdefault(key.strip(), value.strip().strip("\"'"))
     return env
 
 
@@ -37,3 +38,9 @@ def env() -> dict[str, str]:
 def client(env: dict[str, str]) -> Iterator[sdk.CloudWatchLogsClient]:
     with core_client(env) as c:
         yield c
+
+
+@pytest.fixture
+def prefix() -> str:
+    """A unique log group prefix for one test."""
+    return "it-py-" + secrets.token_hex(4)

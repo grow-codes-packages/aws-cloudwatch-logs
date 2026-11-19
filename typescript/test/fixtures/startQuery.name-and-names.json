@@ -1,0 +1,37 @@
+{
+  "function": "startQuery",
+  "case": "name-and-names",
+  "operation": "StartQuery",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.StartQuery"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logGroupNames": [
+        "cwlv-0badc0de/app"
+      ],
+      "startTime": 1,
+      "endTime": 2,
+      "queryString": "fields @message"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "InvalidParameterException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "xhtslUq53HQuyJoCKAK13Ae8a4QCiYJx8xfS9I547rowb8vW1CBW",
+      "content-length": "91"
+    },
+    "body": {
+      "__type": "InvalidParameterException",
+      "message": "A parameter is specified incorrectly."
+    }
+  }
+}

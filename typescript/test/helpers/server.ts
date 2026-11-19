@@ -13,7 +13,11 @@ export interface RecordedRequest {
 export interface MockResponse {
   status?: number;
   headers?: Record<string, string>;
-  body?: string | object;
+  body?: string | object | Buffer;
+  /** Written one after another (after the headers) instead of `body`; each after its delay. */
+  chunks?: { data: Buffer; delayMs?: number }[];
+  /** With `chunks`: keep the response open after the last chunk (until the client goes away). */
+  keepOpen?: boolean;
   /** Delay before answering, in ms. */
   delayMs?: number;
   /** Destroy the socket instead of answering. */
@@ -33,14 +37,36 @@ export interface MockServer {
 }
 
 function send(res: ServerResponse, r: MockResponse): void {
+  const isJson = typeof r.body === "object" && !Buffer.isBuffer(r.body);
   const body =
-    r.body === undefined ? "" : typeof r.body === "string" ? r.body : JSON.stringify(r.body);
+    r.body === undefined
+      ? ""
+      : typeof r.body === "string" || Buffer.isBuffer(r.body)
+        ? r.body
+        : JSON.stringify(r.body);
   const headers: Record<string, string> = {
-    ...(typeof r.body === "object" ? { "content-type": "application/json" } : {}),
+    ...(isJson ? { "content-type": "application/json" } : {}),
     ...r.headers,
   };
   res.writeHead(r.status ?? 200, headers);
-  res.end(body);
+  if (r.chunks === undefined) {
+    res.end(body);
+    return;
+  }
+  res.flushHeaders();
+  const chunks = [...r.chunks];
+  const next = (): void => {
+    const c = chunks.shift();
+    if (c === undefined) {
+      if (r.keepOpen !== true) res.end();
+      return;
+    }
+    setTimeout(() => {
+      if (!res.destroyed) res.write(c.data);
+      next();
+    }, c.delayMs ?? 0);
+  };
+  next();
 }
 
 /** Starts a local HTTP server; `handler` may be a function or a list of responses (the last repeats). */

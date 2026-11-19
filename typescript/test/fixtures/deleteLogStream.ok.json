@@ -1,0 +1,27 @@
+{
+  "function": "deleteLogStream",
+  "case": "ok",
+  "operation": "DeleteLogStream",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DeleteLogStream"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "s3"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "UuLK2FI9Q2Lf9ESiyQ9QTZvtCXsTYc0sLjXS1JgUnkSrBW2dJHfN",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "0"
+    },
+    "body": null
+  }
+}

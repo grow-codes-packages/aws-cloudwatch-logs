@@ -1,0 +1,75 @@
+{
+  "function": "startLiveTail",
+  "case": "filter",
+  "operation": "StartLiveTail",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.StartLiveTail"
+    },
+    "body": {
+      "logGroupIdentifiers": [
+        "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
+      ],
+      "logEventFilterPattern": "\"plain info\""
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/vnd.amazon.eventstream",
+      "x-amzn-requestid": "dVqQXEOfS0H3fncsMAj1Hut89Fx2I1RuXuS99PaSWA9uWxXZ43Tf",
+      "content-length": "821"
+    },
+    "eventStream": [
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "initial-response"
+        },
+        "payload": null
+      },
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "sessionStart",
+          ":content-type": "application/json"
+        },
+        "payload": {
+          "requestId": "cd0d8344-f02e-4d52-9fca-177dc68cb3ec",
+          "sessionId": "8716ebe3-9895-4542-b3c9-6d740d6b1cbb",
+          "logGroupIdentifiers": [
+            "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
+          ],
+          "logStreamNames": [],
+          "logStreamNamePrefixes": [],
+          "logEventFilterPattern": "\"plain info\""
+        }
+      },
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "sessionUpdate",
+          ":content-type": "application/json"
+        },
+        "payload": {
+          "sessionMetadata": {
+            "sampled": false
+          },
+          "sessionResults": [
+            {
+              "logStreamName": "s1",
+              "logGroupIdentifier": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app",
+              "message": "plain info line",
+              "timestamp": 1795034918000,
+              "ingestionTime": 1795034976754
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

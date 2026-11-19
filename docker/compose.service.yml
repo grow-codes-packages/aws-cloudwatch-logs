@@ -46,6 +46,9 @@ services:
         # http://aws-cloudwatch-logs:5000 becomes http://stream-aws-cloudwatch-logs:5000 for that
         # one operation. These aliases make it resolve without disabling host-prefix injection.
         aliases:
+          - aws-cloudwatch-logs
+          - stream-service
+          - streaming-service
           - stream-aws-cloudwatch-logs
           - streaming-aws-cloudwatch-logs
 

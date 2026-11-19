@@ -1,0 +1,45 @@
+{
+  "function": "putLogEvents",
+  "case": "rejected-aws",
+  "operation": "PutLogEvents",
+  "recordedWith": "real AWS CloudWatch Logs (sandbox account, eu-central-1, 2026-11-19), hand-transcribed; Moto 5.2.4 answers the same request with end indexes one lower (putLogEvents.rejected-too-old-too-new)",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "s3",
+      "logEvents": [
+        {
+          "timestamp": 1793738975000,
+          "message": "too old"
+        },
+        {
+          "timestamp": 1795034915000,
+          "message": "accepted"
+        },
+        {
+          "timestamp": 1795045775000,
+          "message": "too new"
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "00000000-0000-0000-0000-000000000000",
+      "content-type": "application/x-amz-json-1.1"
+    },
+    "body": {
+      "rejectedLogEventsInfo": {
+        "tooOldLogEventEndIndex": 1,
+        "tooNewLogEventStartIndex": 2
+      }
+    }
+  }
+}

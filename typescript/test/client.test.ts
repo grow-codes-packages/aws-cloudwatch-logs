@@ -1,244 +1,513 @@
+// Service-owned: config and core client tests (health, ping, serverVersion, close, hooks, UA).
+
 import { inspect } from "node:util";
+import { CloudWatchLogsClient as AwsCloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  API_VERSION,
+  CloudWatchLogsClient,
+  CloudWatchLogsConfig,
+  CloudWatchLogsError,
   ConfigError,
-  PACKAGE_KEY,
+  DEFAULT_MAX_EVENT_BYTES,
+  GROW_USER_AGENT,
   REDACTED,
   RetryPolicy,
   Secret,
   VENDOR_ENV,
-  CloudWatchLogsClient,
-  CloudWatchLogsConfig,
-  CloudWatchLogsError,
+  defaultLogStreamName,
+  isValidLogGroupName,
+  isValidLogStreamName,
+  type RequestInfo,
+  type ResponseInfo,
+  type ErrorInfo,
 } from "../src/index.js";
-import { type MockServer, closedPort, startServer } from "./helpers/server.js";
+import {
+  type FakeCloudWatch,
+  TEST_CREDENTIALS,
+  awsError,
+  fixtureResponse,
+  loopbackDispatcher,
+  ok,
+  startFakeCloudWatch,
+  testClient,
+} from "./helpers/aws.js";
+import { closedPort } from "./helpers/server.js";
 
-const servers: MockServer[] = [];
+const fakes: FakeCloudWatch[] = [];
+const clients: CloudWatchLogsClient[] = [];
 afterEach(async () => {
-  await Promise.all(servers.splice(0).map((s) => s.close()));
+  await Promise.all(clients.splice(0).map((c) => c.close()));
+  await Promise.all(fakes.splice(0).map((f) => f.close()));
 });
 
-async function demoServer(token = "t0ken-value"): Promise<MockServer> {
-  const s = await startServer((req) => {
-    if (req.url === "/health") return { status: 200, body: { status: "ok", version: "1.2.3" } };
-    if (req.url === "/version") return { status: 200, body: { version: "1.2.3" } };
-    if (req.url === "/v1/ping") {
-      return req.headers.authorization === `Bearer ${token}`
-        ? { status: 200, body: { pong: true } }
-        : { status: 401, body: { message: "bad token" } };
-    }
-    return { status: 404 };
-  });
-  servers.push(s);
-  return s;
+async function fake(handler: Parameters<typeof startFakeCloudWatch>[0]): Promise<FakeCloudWatch> {
+  const f = await startFakeCloudWatch(handler);
+  fakes.push(f);
+  return f;
 }
 
-const fast = { retry: { maxRetries: 1, initialBackoffMs: 1 } };
+function client(
+  f: FakeCloudWatch,
+  options: ConstructorParameters<typeof CloudWatchLogsConfig>[0] = {},
+) {
+  const c = testClient(f, options);
+  clients.push(c);
+  return c;
+}
 
 describe("CloudWatchLogsConfig", () => {
   it("uses defaults and freezes", () => {
     const c = new CloudWatchLogsConfig();
-    expect(c.url).toBe(CloudWatchLogsConfig.DEFAULT_URL);
+    expect(c.url).toBe("https://logs.us-east-1.amazonaws.com");
+    expect(c.endpoint).toBeUndefined();
     expect(c.requestTimeoutMs).toBe(30_000);
     expect(c.retry).toBeInstanceOf(RetryPolicy);
-    expect(c.token).toBeUndefined();
+    expect(c.maxEventBytes).toBe(DEFAULT_MAX_EVENT_BYTES);
+    expect(c.oversizePolicy).toBe("truncate");
+    expect(c.autoCreate).toBe(true);
+    expect(c.roleSessionName).toBe("grow-sdk");
+    expect(c.logStream).toMatch(/^.+-\d+-[0-9a-f]{6}$/);
     expect(Object.isFrozen(c)).toBe(true);
     expect(CloudWatchLogsConfig.from(c)).toBe(c);
-    expect(CloudWatchLogsConfig.from().url).toBe(c.url);
-    const prefix = `GROW_${PACKAGE_KEY.toUpperCase().replaceAll("-", "_")}_`;
-    expect(CloudWatchLogsConfig.ENV_PREFIX).toBe(prefix);
+    expect(CloudWatchLogsConfig.ENV_PREFIX).toBe("GROW_AWS_CLOUDWATCH_LOGS_");
+    expect(API_VERSION).toBe("2014-03-28");
+    expect(new CloudWatchLogsConfig({ region: "eu-west-1" }).url).toBe(
+      "https://logs.eu-west-1.amazonaws.com",
+    );
   });
 
-  it("keeps optional settings", () => {
+  it("keeps every option and redacts credentials", () => {
     const hooks = {};
     const logger = { debug() {}, info() {}, warn() {}, error() {} };
     const c = new CloudWatchLogsConfig({
+      url: "http://moto:5000",
+      region: "us-east-1",
+      accessKeyId: "AKID",
+      secretAccessKey: "super-secret-value",
+      sessionToken: new Secret("session-token-value"),
+      profile: "dev",
+      roleArn: "arn:aws:iam::123456789012:role/x",
+      roleSessionName: "s",
+      externalId: "ext-id-value",
+      logGroup: "app/logs",
+      logStream: "s1",
+      accountId: "123456789012",
+      maxEventBytes: 1000,
+      oversizePolicy: "drop",
+      autoCreate: false,
       proxy: "http://p:1",
-      userAgentSuffix: "s",
+      userAgentSuffix: "suffix",
       hooks,
       logger,
-      token: new Secret("abcd"),
     });
-    expect(c.proxy).toBe("http://p:1");
-    expect(c.userAgentSuffix).toBe("s");
+    expect(c.endpoint).toBe("http://moto:5000");
+    expect(c.url).toBe("http://moto:5000");
+    expect(c.secretAccessKey?.reveal()).toBe("super-secret-value");
+    expect(c.knownSecrets()).toEqual(["super-secret-value", "session-token-value"]);
     expect(c.hooks).toBe(hooks);
     expect(c.logger).toBe(logger);
-    expect(c.knownSecrets()).toEqual(["abcd"]);
-  });
-
-  it("validate() raises ConfigError", () => {
-    expect(() => new CloudWatchLogsConfig({ url: "ftp://x" })).toThrow(ConfigError);
-    expect(() => new CloudWatchLogsConfig({ token: "   " })).toThrow(ConfigError);
-  });
-
-  it("core.redaction.config: toString/JSON/inspect hide credentials", () => {
-    const c = new CloudWatchLogsConfig({
-      token: "super-secret-tok",
-      headers: { "x-api-key": "hdr-secret" },
-    });
-    for (const form of [String(c), JSON.stringify(c), inspect(c), `${c.token}`]) {
-      expect(form).not.toContain("super-secret-tok");
-      expect(form).not.toContain("hdr-secret");
+    expect(c.proxy).toBe("http://p:1");
+    expect(c.userAgentSuffix).toBe("suffix");
+    const text = `${c.toString()} ${inspect(c)} ${JSON.stringify(c)}`;
+    for (const secret of ["super-secret-value", "session-token-value", "ext-id-value"]) {
+      expect(text).not.toContain(secret);
     }
-    expect(String(c)).toContain(REDACTED);
-    expect(String(c)).toMatch(/Config\(/);
-    expect(new CloudWatchLogsConfig().toJSON().token).toBeNull();
+    expect(c.toJSON()).toMatchObject({
+      secretAccessKey: REDACTED,
+      sessionToken: REDACTED,
+      externalId: REDACTED,
+      logGroup: "app/logs",
+      logStream: "s1",
+      oversizePolicy: "drop",
+      autoCreate: false,
+      sdkClient: null,
+      credentials: null,
+    });
+    const withCreds = new CloudWatchLogsConfig({
+      credentials: { accessKeyId: "a", secretAccessKey: "b" },
+    });
+    expect(withCreds.toJSON().credentials).toBe(REDACTED);
+    const sdk = new AwsCloudWatchLogsClient({ region: "us-east-1" });
+    expect(new CloudWatchLogsConfig({ sdkClient: sdk }).toJSON().sdkClient).toBe(
+      "CloudWatchLogsClient",
+    );
+    sdk.destroy();
   });
 
-  it("core.config.env-precedence: explicit > GROW_* > vendor > default", () => {
-    const prefix = CloudWatchLogsConfig.ENV_PREFIX;
-    const vendor = VENDOR_ENV as { url: string[]; token: string[] };
-    const saved = { url: vendor.url, token: vendor.token };
-    vendor.url = ["VENDOR_ADDR"];
-    vendor.token = ["VENDOR_TOKEN"];
+  it("validates", () => {
+    const bad: ConstructorParameters<typeof CloudWatchLogsConfig>[0][] = [
+      { url: "ftp://x" },
+      { region: "US EAST" },
+      { accessKeyId: "a" },
+      { secretAccessKey: "b" },
+      { sessionToken: "t" },
+      {
+        accessKeyId: "a",
+        secretAccessKey: "b",
+        credentials: { accessKeyId: "a", secretAccessKey: "b" },
+      },
+      { roleArn: "role" },
+      { logGroup: "bad name" },
+      { logStream: "a:b" },
+      { accountId: "12" },
+      { maxEventBytes: 10 },
+      { maxEventBytes: 2_000_000 },
+      { oversizePolicy: "explode" as never },
+      { connectTimeoutMs: 0 },
+    ];
+    for (const options of bad) expect(() => new CloudWatchLogsConfig(options)).toThrow(ConfigError);
+    const sdk = new AwsCloudWatchLogsClient({ region: "us-east-1" });
+    expect(() => new CloudWatchLogsConfig({ sdkClient: sdk, region: "us-east-1" })).toThrow(
+      /sdkClient is mutually exclusive with region/,
+    );
+    sdk.destroy();
+  });
+
+  it("names and default stream", () => {
+    expect(isValidLogGroupName("a/b-c_d.e#f")).toBe(true);
+    expect(isValidLogGroupName("")).toBe(false);
+    expect(isValidLogGroupName("x".repeat(513))).toBe(false);
+    expect(isValidLogStreamName("s")).toBe(true);
+    expect(isValidLogStreamName("a*b")).toBe(false);
+    expect(defaultLogStreamName()).toMatch(new RegExp(`-${process.pid}-[0-9a-f]{6}$`));
+  });
+
+  it("fromEnv: GROW_* > AWS/vendor variables > defaults", () => {
+    const env = {
+      GROW_AWS_CLOUDWATCH_LOGS_URL: "http://grow:1",
+      AWS_ENDPOINT_URL_CLOUDWATCH_LOGS: "http://vendor:2",
+      AWS_REGION: "eu-west-1",
+      AWS_DEFAULT_REGION: "us-west-2",
+      AWS_ACCESS_KEY_ID: "AKIDENV",
+      AWS_SECRET_ACCESS_KEY: "env-secret",
+      AWS_SESSION_TOKEN: "env-session",
+      AWS_PROFILE: "p1",
+      CLOUDWATCH_LOG_GROUP: "vendor/group",
+      GROW_AWS_CLOUDWATCH_LOGS_LOG_STREAM: "grow-stream",
+      CLOUDWATCH_LOG_STREAM: "vendor-stream",
+      GROW_AWS_CLOUDWATCH_LOGS_ROLE_ARN: "arn:aws:iam::1:role/r",
+      GROW_AWS_CLOUDWATCH_LOGS_ROLE_SESSION_NAME: "sess",
+      GROW_AWS_CLOUDWATCH_LOGS_EXTERNAL_ID: "ext",
+      GROW_AWS_CLOUDWATCH_LOGS_ACCOUNT_ID: "123456789012",
+      GROW_AWS_CLOUDWATCH_LOGS_MAX_EVENT_BYTES: "4096",
+      GROW_AWS_CLOUDWATCH_LOGS_OVERSIZE_POLICY: "ERROR",
+      GROW_AWS_CLOUDWATCH_LOGS_AUTO_CREATE: "no",
+      GROW_AWS_CLOUDWATCH_LOGS_MAX_RETRIES: "5",
+      GROW_AWS_CLOUDWATCH_LOGS_REQUEST_TIMEOUT: "2s",
+    };
+    const c = CloudWatchLogsConfig.fromEnv({}, env);
+    expect(c.endpoint).toBe("http://grow:1");
+    expect(c.region).toBe("eu-west-1");
+    expect(c.accessKeyId).toBe("AKIDENV");
+    expect(c.secretAccessKey?.reveal()).toBe("env-secret");
+    expect(c.sessionToken?.reveal()).toBe("env-session");
+    expect(c.profile).toBe("p1");
+    expect(c.logGroup).toBe("vendor/group");
+    expect(c.logStream).toBe("grow-stream");
+    expect(c.roleArn).toBe("arn:aws:iam::1:role/r");
+    expect(c.roleSessionName).toBe("sess");
+    expect(c.externalId).toBe("ext");
+    expect(c.accountId).toBe("123456789012");
+    expect(c.maxEventBytes).toBe(4096);
+    expect(c.oversizePolicy).toBe("error");
+    expect(c.autoCreate).toBe(false);
+    expect(c.retry.maxRetries).toBe(5);
+    expect(c.requestTimeoutMs).toBe(2000);
+
+    // vendor fallbacks, explicit overrides win
+    const v = CloudWatchLogsConfig.fromEnv(
+      { logGroup: "explicit" },
+      { AWS_ENDPOINT_URL: "http://generic:3", AWS_DEFAULT_REGION: "us-west-2" },
+    );
+    expect(v.endpoint).toBe("http://generic:3");
+    expect(v.region).toBe("us-west-2");
+    expect(v.logGroup).toBe("explicit");
+    expect(v.accessKeyId).toBeUndefined();
+    expect(VENDOR_ENV.url).toEqual(["AWS_ENDPOINT_URL_CLOUDWATCH_LOGS", "AWS_ENDPOINT_URL"]);
+  });
+
+  it("fromEnv: GROW_* credentials come from one layer only", () => {
+    const c = CloudWatchLogsConfig.fromEnv(
+      {},
+      {
+        GROW_AWS_CLOUDWATCH_LOGS_ACCESS_KEY_ID: "AKIDGROW",
+        GROW_AWS_CLOUDWATCH_LOGS_SECRET_ACCESS_KEY: "grow-secret",
+        GROW_AWS_CLOUDWATCH_LOGS_SESSION_TOKEN: "grow-session",
+        AWS_SECRET_ACCESS_KEY: "aws-secret",
+      },
+    );
+    expect(c.accessKeyId).toBe("AKIDGROW");
+    expect(c.secretAccessKey?.reveal()).toBe("grow-secret");
+    expect(c.sessionToken?.reveal()).toBe("grow-session");
+    expect(() =>
+      CloudWatchLogsConfig.fromEnv({}, { GROW_AWS_CLOUDWATCH_LOGS_ACCESS_KEY_ID: "AKID" }),
+    ).toThrow(/accessKeyId requires secretAccessKey/);
+  });
+
+  it("fromEnv: an explicit sdkClient or credentials replaces the environment", () => {
+    const env = {
+      AWS_ACCESS_KEY_ID: "AKIDENV",
+      AWS_SECRET_ACCESS_KEY: "env-secret",
+      AWS_REGION: "eu-west-1",
+      AWS_ENDPOINT_URL: "http://x:1",
+      AWS_PROFILE: "p",
+      GROW_AWS_CLOUDWATCH_LOGS_ROLE_ARN: "arn:aws:iam::1:role/r",
+    };
+    const sdk = new AwsCloudWatchLogsClient({ region: "us-east-1" });
+    const c = CloudWatchLogsConfig.fromEnv({ sdkClient: sdk }, env);
+    expect(c.sdkClient).toBe(sdk);
+    expect(c.accessKeyId).toBeUndefined();
+    expect(c.region).toBeUndefined();
+    sdk.destroy();
+    const d = CloudWatchLogsConfig.fromEnv(
+      { credentials: { accessKeyId: "x", secretAccessKey: "y" } },
+      env,
+    );
+    expect(d.accessKeyId).toBeUndefined();
+    expect(d.region).toBe("eu-west-1");
+  });
+
+  it("fromEnv: invalid values name the variable, never the value", () => {
+    expect(() =>
+      CloudWatchLogsConfig.fromEnv({}, { GROW_AWS_CLOUDWATCH_LOGS_OVERSIZE_POLICY: "secretish" }),
+    ).toThrow(/GROW_AWS_CLOUDWATCH_LOGS_OVERSIZE_POLICY/);
     try {
-      const env = {
-        [`${prefix}URL`]: "http://grow:1",
-        VENDOR_ADDR: "http://vendor:2",
-        VENDOR_TOKEN: "vendor-token",
-        [`${prefix}REQUEST_TIMEOUT`]: "5s",
-        [`${prefix}MAX_RETRIES`]: "7",
-      };
-      const fromEnv = CloudWatchLogsConfig.fromEnv({}, env);
-      expect(fromEnv.url).toBe("http://grow:1");
-      expect(fromEnv.token?.reveal()).toBe("vendor-token");
-      expect(fromEnv.requestTimeoutMs).toBe(5000);
-      expect(fromEnv.retry.maxRetries).toBe(7);
-      expect(fromEnv.connectTimeoutMs).toBe(10_000);
-
-      const vendorOnly = CloudWatchLogsConfig.fromEnv({}, { VENDOR_ADDR: "http://vendor:2" });
-      expect(vendorOnly.url).toBe("http://vendor:2");
-
-      const explicit = CloudWatchLogsConfig.fromEnv(
-        { url: "http://explicit:3", token: "explicit-token", retry: { initialBackoffMs: 1 } },
-        env,
-      );
-      expect(explicit.url).toBe("http://explicit:3");
-      expect(explicit.token?.reveal()).toBe("explicit-token");
-      expect(explicit.retry.maxRetries).toBe(7);
-      expect(explicit.retry.initialBackoffMs).toBe(1);
-
-      expect(CloudWatchLogsConfig.fromEnv({}, {}).url).toBe(CloudWatchLogsConfig.DEFAULT_URL);
-      expect(CloudWatchLogsConfig.fromEnv().url).toBeTypeOf("string");
-
-      let err: unknown;
-      try {
-        CloudWatchLogsConfig.fromEnv({}, { [`${prefix}TOTAL_TIMEOUT`]: "forever-and-secret" });
-      } catch (e) {
-        err = e;
-      }
-      expect(err).toBeInstanceOf(ConfigError);
-      expect((err as Error).message).toContain(`${prefix}TOTAL_TIMEOUT`);
-      expect((err as Error).message).not.toContain("forever-and-secret");
-    } finally {
-      vendor.url = saved.url;
-      vendor.token = saved.token;
+      CloudWatchLogsConfig.fromEnv({}, { GROW_AWS_CLOUDWATCH_LOGS_MAX_EVENT_BYTES: "lots-xyz" });
+    } catch (err) {
+      expect(String(err)).not.toContain("lots-xyz");
     }
   });
 });
 
-describe("CloudWatchLogsClient", () => {
-  it("health, ping and serverVersion against the demo API", async () => {
-    const s = await demoServer();
-    const client = new CloudWatchLogsClient({ url: s.url, token: "t0ken-value", ...fast });
-    expect(await client.health()).toEqual({
+describe("CloudWatchLogsClient core", () => {
+  it("health is ok on a signed DescribeLogGroups and uses the log group prefix", async () => {
+    const f = await fake(() => fixtureResponse("ping.ok"));
+    const c = client(f, { logGroup: "grow-bootstrap/seed" });
+    expect(await c.health()).toEqual({ healthy: true, status: "ok", details: {} });
+    expect(f.ops()).toEqual(["DescribeLogGroups"]);
+    expect(f.requests[0]?.body).toEqual({ limit: 1, logGroupNamePrefix: "grow-bootstrap/seed" });
+    expect(String(f.requests[0]?.headers.authorization)).toMatch(/^AWS4-HMAC-SHA256 /);
+  });
+
+  it("health maps auth failures, throttling, 5xx and network errors without throwing", async () => {
+    const auth = client(await fake(() => fixtureResponse("ping.auth-unknown-key")));
+    expect(await auth.health()).toEqual({
       healthy: true,
       status: "ok",
-      details: { version: "1.2.3" },
+      details: { auth: "failed", code: "AUTHENTICATION" },
     });
-    expect(await client.ping()).toBeGreaterThanOrEqual(0);
-    expect(await client.serverVersion()).toBe("1.2.3");
-    expect(client.transport.userAgent).toContain(`grow-codes-${PACKAGE_KEY}/`);
-    await client.close();
-  });
-
-  it("ping with a bad token raises AuthenticationError without leaking it", async () => {
-    const s = await demoServer();
-    const client = new CloudWatchLogsClient(
-      new CloudWatchLogsConfig({ url: s.url, token: "wrong-token-xyz", ...fast }),
-    );
-    const err = await client.ping().catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(CloudWatchLogsError);
-    expect((err as CloudWatchLogsError).code).toBe("AUTHENTICATION");
-    expect((err as Error).message).not.toContain("wrong-token-xyz");
-    await client.close();
-  });
-
-  it("serverVersion raises UnsupportedError when absent", async () => {
-    const s = await startServer([{ status: 404 }]);
-    servers.push(s);
-    const client = new CloudWatchLogsClient({ url: s.url, ...fast });
-    await expect(client.serverVersion()).rejects.toMatchObject({ code: "UNSUPPORTED" });
-    const s2 = await startServer([{ status: 200, body: { other: 1 } }]);
-    servers.push(s2);
-    const client2 = new CloudWatchLogsClient({ url: s2.url, ...fast });
-    await expect(client2.serverVersion()).rejects.toMatchObject({ code: "UNSUPPORTED" });
-    await client.close();
-    await client2.close();
-  });
-
-  it("health reports vendor words and unhealthy statuses", async () => {
-    const s = await startServer((req) =>
-      req.url === "/health"
-        ? { status: 200, body: { status: "degraded" } }
-        : { status: 200, body: "" },
-    );
-    servers.push(s);
-    const degraded = new CloudWatchLogsClient({ url: s.url, ...fast });
-    expect(await degraded.health()).toMatchObject({ healthy: false, status: "degraded" });
-    await degraded.close();
-    const empty = await startServer([{ status: 200 }]);
-    servers.push(empty);
-    const ok = new CloudWatchLogsClient({ url: empty.url, ...fast });
-    expect(await ok.health()).toMatchObject({ healthy: true, status: "ok" });
-    await ok.close();
-    const down = await startServer([{ status: 500 }]);
-    servers.push(down);
-    const sick = new CloudWatchLogsClient({ url: down.url, ...fast });
-    expect(await sick.health()).toMatchObject({ healthy: false, status: "unhealthy" });
-    await sick.close();
-  });
-
-  it("core.health.unreachable: closed port -> healthy=false, status=unreachable", async () => {
+    const denied = client(await fake(() => fixtureResponse("deleteLogGroup.access-denied")));
+    expect((await denied.health()).details.code).toBe("PERMISSION_DENIED");
+    const throttled = client(await fake(() => awsError("ThrottlingException")));
+    expect(await throttled.health()).toMatchObject({ healthy: true, status: "degraded" });
+    const broken = client(await fake(() => fixtureResponse("stopQuery.moto-500")), {
+      retry: { maxRetries: 3 },
+    });
+    expect(await broken.health()).toEqual({
+      healthy: false,
+      status: "unhealthy",
+      details: { httpStatus: "500", error: "UNAVAILABLE" },
+    });
+    // the probe never retries
+    expect(fakes.at(-1)?.requests).toHaveLength(1);
     const port = await closedPort();
-    const client = new CloudWatchLogsClient({ url: `http://127.0.0.1:${port}`, ...fast });
-    expect(await client.health()).toEqual({
+    const down = new CloudWatchLogsClient(
+      { ...TEST_CREDENTIALS, url: `http://127.0.0.1:${port}` },
+      { dispatcher: loopbackDispatcher() },
+    );
+    clients.push(down);
+    expect(await down.health()).toEqual({
       healthy: false,
       status: "unreachable",
       details: { error: "UNAVAILABLE" },
     });
-    await client.close();
   });
 
   it("health rethrows cancellation", async () => {
-    const s = await demoServer();
-    const client = new CloudWatchLogsClient({ url: s.url });
-    await expect(client.health({ signal: AbortSignal.abort() })).rejects.toMatchObject({
-      code: "CANCELLED",
+    const c = client(await fake(() => fixtureResponse("ping.ok")));
+    const ac = new AbortController();
+    ac.abort();
+    await expect(c.health({ signal: ac.signal })).rejects.toMatchObject({ code: "CANCELLED" });
+  });
+
+  it("ping returns latency and maps auth errors from Moto's XML bodies", async () => {
+    const c = client(await fake(() => fixtureResponse("ping.ok")));
+    expect(await c.ping()).toBeGreaterThanOrEqual(0);
+    for (const [name, code] of [
+      ["ping.auth-unknown-key", "AUTHENTICATION"],
+      ["ping.auth-bad-signature", "AUTHENTICATION"],
+      ["deleteLogGroup.access-denied", "PERMISSION_DENIED"],
+    ] as const) {
+      const bad = client(await fake(() => fixtureResponse(name)));
+      const err = await bad.ping().catch((e: unknown) => e as CloudWatchLogsError);
+      expect(err).toBeInstanceOf(CloudWatchLogsError);
+      expect(err).toMatchObject({ code, httpStatus: 403 });
+      expect((err as CloudWatchLogsError).requestId).toBe(
+        fixtureResponse(name).headers?.["x-amzn-requestid"],
+      );
+      expect((err as Error).message).not.toContain(TEST_CREDENTIALS.secretAccessKey);
+    }
+  });
+
+  it("serverVersion is unsupported", async () => {
+    const c = client(await fake(() => ok({})));
+    await expect(c.serverVersion()).rejects.toMatchObject({ code: "UNSUPPORTED" });
+  });
+
+  it("close is idempotent and later calls fail with CANCELLED", async () => {
+    const c = client(await fake(() => fixtureResponse("ping.ok")));
+    await c.close();
+    await c.close();
+    await expect(c.ping()).rejects.toMatchObject({ code: "CANCELLED" });
+    await expect(c.ensureLogGroup("app/web")).rejects.toMatchObject({ code: "CANCELLED" });
+  });
+
+  it("never destroys a caller-supplied SDK client", async () => {
+    const f = await fake(() => fixtureResponse("ping.ok"));
+    const sdk = new AwsCloudWatchLogsClient({
+      region: "us-east-1",
+      endpoint: f.url,
+      credentials: { accessKeyId: "a", secretAccessKey: "b" },
     });
-    await client.close();
+    const c = new CloudWatchLogsClient({ sdkClient: sdk });
+    expect(c.sdk).toBe(sdk);
+    expect(await c.ping()).toBeGreaterThanOrEqual(0);
+    expect((await c.health()).healthy).toBe(true);
+    await c.close();
+    expect(await sdk.config.region()).toBe("us-east-1");
+    sdk.destroy();
   });
 
-  it("core.close.idempotent: close twice is safe", async () => {
-    const s = await demoServer();
-    const client = new CloudWatchLogsClient({ url: s.url });
-    await client.health();
-    await client.close();
-    await client.close();
-    await expect(client.ping()).rejects.toMatchObject({ code: "CONFIG" });
+  it("sends the Grow User-Agent and extra headers, fires hooks, retries per maxRetries", async () => {
+    const f = await fake((_req, i) =>
+      i === 0 ? { status: 503, body: "" } : fixtureResponse("ping.ok"),
+    );
+    const requests: RequestInfo[] = [];
+    const responses: ResponseInfo[] = [];
+    const errors: ErrorInfo[] = [];
+    const c = client(f, {
+      retry: { maxRetries: 2 },
+      headers: { "x-extra": "1" },
+      userAgentSuffix: "my-app/2",
+      hooks: {
+        onRequest: (r) => requests.push(r),
+        onResponse: (r) => responses.push(r),
+        onError: (e) => errors.push(e),
+      },
+    });
+    await c.ping();
+    expect(f.requests).toHaveLength(2);
+    expect(String(f.requests[0]?.headers["user-agent"])).toContain(`${GROW_USER_AGENT} my-app/2`);
+    expect(f.requests[0]?.headers["x-extra"]).toBe("1");
+    expect(requests.map((r) => r.attempt)).toEqual([1, 2]);
+    expect(requests[0]?.headers.authorization).toBe(REDACTED);
+    expect(responses.map((r) => r.status)).toEqual([503, 200]);
+    expect(responses[1]?.requestId).toBeDefined();
+    expect(errors).toEqual([]);
+    expect(JSON.stringify(requests)).not.toContain(TEST_CREDENTIALS.secretAccessKey);
   });
 
-  it("fromEnv builds from GROW_* variables", async () => {
-    const s = await demoServer();
-    const key = `${CloudWatchLogsConfig.ENV_PREFIX}URL`;
-    process.env[key] = s.url;
+  it("network errors fire onError and map to UNAVAILABLE", async () => {
+    const port = await closedPort();
+    const errors: ErrorInfo[] = [];
+    const c = new CloudWatchLogsClient(
+      {
+        ...TEST_CREDENTIALS,
+        url: `http://127.0.0.1:${port}`,
+        retry: { maxRetries: 1 },
+        hooks: { onError: (e) => errors.push(e) },
+      },
+      { dispatcher: loopbackDispatcher() },
+    );
+    clients.push(c);
+    const err = await c.ping().catch((e: unknown) => e as CloudWatchLogsError);
+    expect(err).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0]?.willRetry).toBe(true);
+  });
+
+  it("per-attempt and total timeouts map to TIMEOUT; cancellation to CANCELLED", async () => {
+    const slow = await fake(() => ({ ...fixtureResponse("ping.ok"), delayMs: 400 }));
+    const attempt = client(slow, { requestTimeoutMs: 50 });
+    await expect(attempt.ping()).rejects.toMatchObject({ code: "TIMEOUT" });
+    const total = client(slow, { totalTimeoutMs: 60, retry: { maxRetries: 0 } });
+    await expect(total.ping()).rejects.toMatchObject({
+      code: "TIMEOUT",
+      message: "ping: timed out after 60 ms",
+    });
+    const cancel = client(slow);
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(), 30);
+    await expect(cancel.ping({ signal: ac.signal })).rejects.toMatchObject({ code: "CANCELLED" });
+  });
+
+  it("missing region and missing credentials map to CONFIG / AUTHENTICATION", async () => {
+    const f = await fake(() => fixtureResponse("ping.ok"));
+    const saved = { ...process.env };
+    for (const k of [
+      "AWS_REGION",
+      "AWS_DEFAULT_REGION",
+      "AWS_PROFILE",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_SESSION_TOKEN",
+    ]) {
+      delete process.env[k];
+    }
+    process.env.AWS_CONFIG_FILE = "/nonexistent/config";
+    process.env.AWS_SHARED_CREDENTIALS_FILE = "/nonexistent/credentials";
+    process.env.AWS_EC2_METADATA_DISABLED = "true";
     try {
-      const client = CloudWatchLogsClient.fromEnv({ token: "t0ken-value" });
-      expect(client.config.url).toBe(s.url);
-      expect(await client.ping()).toBeGreaterThanOrEqual(0);
-      await client.close();
+      const noRegion = new CloudWatchLogsClient(
+        { url: f.url, accessKeyId: "a", secretAccessKey: "b" },
+        { dispatcher: loopbackDispatcher() },
+      );
+      clients.push(noRegion);
+      await expect(noRegion.ping()).rejects.toMatchObject({ code: "CONFIG" });
+      const noCreds = new CloudWatchLogsClient(
+        { url: f.url, region: "us-east-1" },
+        { dispatcher: loopbackDispatcher() },
+      );
+      clients.push(noCreds);
+      await expect(noCreds.ping()).rejects.toMatchObject({ code: "AUTHENTICATION" });
     } finally {
-      delete process.env[key];
+      process.env = saved;
+    }
+  });
+
+  it("builds credentials from a session token, a provider or an assumed role", async () => {
+    const f = await fake((req) =>
+      req.target === "" ? { status: 500 } : fixtureResponse("ping.ok"),
+    );
+    const withToken = client(f, { sessionToken: "session-token-xyz" });
+    await withToken.ping();
+    expect(f.requests.at(-1)?.headers["x-amz-security-token"]).toBe("session-token-xyz");
+    const provider = new CloudWatchLogsClient(
+      {
+        region: "us-east-1",
+        url: f.url,
+        credentials: async () => ({ accessKeyId: "AKIDPROV", secretAccessKey: "prov" }),
+      },
+      { dispatcher: loopbackDispatcher() },
+    );
+    clients.push(provider);
+    await provider.ping();
+    expect(String(f.requests.at(-1)?.headers.authorization)).toContain("AKIDPROV");
+    const role = client(f, { roleArn: "arn:aws:iam::123456789012:role/r", externalId: "e" });
+    expect(role.config.roleArn).toBeDefined();
+  });
+
+  it("fromEnv builds a client", () => {
+    const saved = { ...process.env };
+    process.env.GROW_AWS_CLOUDWATCH_LOGS_REGION = "us-east-1";
+    try {
+      const c = CloudWatchLogsClient.fromEnv({ logGroup: "x" });
+      clients.push(c);
+      expect(c.config.logGroup).toBe("x");
+      expect(c.config.region).toBe("us-east-1");
+    } finally {
+      process.env = saved;
     }
   });
 });

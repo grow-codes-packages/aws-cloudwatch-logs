@@ -1,0 +1,27 @@
+{
+  "function": "putRetentionPolicy",
+  "case": "ok",
+  "operation": "PutRetentionPolicy",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutRetentionPolicy"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "retentionInDays": 7
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "DvsOUUWLDwcSuBZL4gZf0MBUGvOJhX5NGBTAF3N0twNl4qvjPbph",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "0"
+    },
+    "body": null
+  }
+}

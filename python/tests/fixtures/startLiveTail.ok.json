@@ -1,0 +1,93 @@
+{
+  "function": "startLiveTail",
+  "case": "ok",
+  "operation": "StartLiveTail",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.StartLiveTail"
+    },
+    "body": {
+      "logGroupIdentifiers": [
+        "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
+      ],
+      "logStreamNames": [
+        "s1"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/vnd.amazon.eventstream",
+      "x-amzn-requestid": "n19RU8mdHESWIBd2rDHGtvCorOAt8XPNLVWAPNmje7gJsyzkGRRr",
+      "content-length": "1354"
+    },
+    "eventStream": [
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "initial-response"
+        },
+        "payload": null
+      },
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "sessionStart",
+          ":content-type": "application/json"
+        },
+        "payload": {
+          "requestId": "e3031d00-f697-4be1-ba89-25351d11ae10",
+          "sessionId": "3f5b84fa-f200-4940-9535-c46e5d5163fc",
+          "logGroupIdentifiers": [
+            "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
+          ],
+          "logStreamNames": [
+            "s1"
+          ],
+          "logStreamNamePrefixes": [],
+          "logEventFilterPattern": ""
+        }
+      },
+      {
+        "headers": {
+          ":message-type": "event",
+          ":event-type": "sessionUpdate",
+          ":content-type": "application/json"
+        },
+        "payload": {
+          "sessionMetadata": {
+            "sampled": false
+          },
+          "sessionResults": [
+            {
+              "logStreamName": "s1",
+              "logGroupIdentifier": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app",
+              "message": "hello marker-0badc0de ERROR",
+              "timestamp": 1795034916000,
+              "ingestionTime": 1795034976754
+            },
+            {
+              "logStreamName": "s1",
+              "logGroupIdentifier": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app",
+              "message": "{\"severity\":\"error\",\"body\":\"héllo ünïcode ✓ marker-0badc0de\",\"traceId\":\"0af7651916cd43dd8448eb211c80319c\"}",
+              "timestamp": 1795034917000,
+              "ingestionTime": 1795034976754
+            },
+            {
+              "logStreamName": "s1",
+              "logGroupIdentifier": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app",
+              "message": "plain info line",
+              "timestamp": 1795034918000,
+              "ingestionTime": 1795034976754
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

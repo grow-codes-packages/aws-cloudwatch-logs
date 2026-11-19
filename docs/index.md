@@ -5,8 +5,8 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](license.md)
 
 One API for **Amazon CloudWatch Logs** in five languages: TypeScript, Rust, Go, Python and Java. Every package
-has the same functions, options, defaults, error codes and behaviour, tested against a real
-`motoserver/moto:5.2.4` in Docker.
+has the same functions, options, defaults, error codes and behaviour, is built on the official AWS
+SDK of its language and is tested against the `motoserver/moto:5.2.4` AWS emulator in Docker.
 
 | Language | Package | Coverage |
 | - | - | - |
@@ -28,7 +28,9 @@ has the same functions, options, defaults, error codes and behaviour, tested aga
   ([Redaction](redaction.md)).
 - **Logging**: batching log client, logger facade, redaction processor, framework adapters and
   log search ([Logging](logging.md)).
-- **Service functions** for the Amazon CloudWatch Logs API ([Functions](functions.md)).
+- **Service functions** for the Amazon CloudWatch Logs API ([Functions](functions.md)): idempotent
+  log group and stream setup, retention and tags, `putLogEvents` batching within the service limits,
+  Embedded Metric Format, `filterLogEvents` / `getLogEvents`, Logs Insights queries and live tail.
 
 Start with [Install](install.md) and the [Quickstart](quickstart.md).
 

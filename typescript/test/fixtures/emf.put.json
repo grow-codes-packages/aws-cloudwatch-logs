@@ -1,0 +1,35 @@
+{
+  "function": "emf",
+  "case": "put",
+  "operation": "PutLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.PutLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamName": "s3",
+      "logEvents": [
+        {
+          "timestamp": 1795034919000,
+          "message": "{\"_aws\":{\"Timestamp\":1795034919000,\"CloudWatchMetrics\":[{\"Namespace\":\"GrowSdk\",\"Dimensions\":[[\"service\"]],\"Metrics\":[{\"Name\":\"latency\",\"Unit\":\"Milliseconds\"}]}]},\"service\":\"api-0badc0de\",\"latency\":42}"
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "tTPBTz7OY0TDfabnRBn0Q4e1CM7h66BMuuMtrSbYAURAls2m6Cpu",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "81"
+    },
+    "body": {
+      "nextSequenceToken": "00000000000000000000000000000000000000000000000000000005"
+    }
+  }
+}

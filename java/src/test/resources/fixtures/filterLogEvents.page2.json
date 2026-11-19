@@ -1,0 +1,48 @@
+{
+  "function": "filterLogEvents",
+  "case": "page2",
+  "operation": "FilterLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.FilterLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "logStreamNames": [
+        "s1"
+      ],
+      "limit": 2,
+      "nextToken": "cwlv-0badc0de/app@s1@4"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "E7YUBdsbqipU7gc3oX18Q5kP838wZRjyAyVyWTTPw7OjpkzCD8E8",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "239"
+    },
+    "body": {
+      "events": [
+        {
+          "eventId": "5",
+          "ingestionTime": 1795034976754,
+          "message": "plain info line",
+          "timestamp": 1795034918000,
+          "logStreamName": "s1"
+        }
+      ],
+      "nextToken": null,
+      "searchedLogStreams": [
+        {
+          "logStreamName": "s1",
+          "searchedCompletely": true
+        }
+      ]
+    }
+  }
+}

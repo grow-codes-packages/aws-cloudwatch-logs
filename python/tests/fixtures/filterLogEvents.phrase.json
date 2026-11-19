@@ -1,0 +1,64 @@
+{
+  "function": "filterLogEvents",
+  "case": "phrase",
+  "operation": "FilterLogEvents",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.FilterLogEvents"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "filterPattern": "\"plain info\""
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "5ZiJQipmOHmiSbU2493peqBTNBRWXdPseboUj3h5UFJtBR26nkod",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "510"
+    },
+    "body": {
+      "events": [
+        {
+          "eventId": "5",
+          "ingestionTime": 1795034976754,
+          "message": "plain info line",
+          "timestamp": 1795034918000,
+          "logStreamName": "s1"
+        }
+      ],
+      "nextToken": null,
+      "searchedLogStreams": [
+        {
+          "logStreamName": "s1",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "s2",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "s3",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "bulk",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "bulk2",
+          "searchedCompletely": true
+        },
+        {
+          "logStreamName": "big",
+          "searchedCompletely": true
+        }
+      ]
+    }
+  }
+}

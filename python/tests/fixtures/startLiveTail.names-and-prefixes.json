@@ -1,0 +1,39 @@
+{
+  "function": "startLiveTail",
+  "case": "names-and-prefixes",
+  "operation": "StartLiveTail",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.StartLiveTail"
+    },
+    "body": {
+      "logGroupIdentifiers": [
+        "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
+      ],
+      "logStreamNames": [
+        "s1"
+      ],
+      "logStreamNamePrefixes": [
+        "s"
+      ]
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "InvalidParameterException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "4A8933ICUNlKqWJJ5dQwUW0cJ1UNWntBZxcAOWz8XdPigOryf71e",
+      "content-length": "122"
+    },
+    "body": {
+      "__type": "InvalidParameterException",
+      "message": "Only one of logStreamNames or logStreamNamePrefixes can be provided."
+    }
+  }
+}

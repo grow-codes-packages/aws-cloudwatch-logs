@@ -1,0 +1,102 @@
+{
+  "function": "getQueryResults",
+  "case": "stats-ignored",
+  "operation": "GetQueryResults",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.GetQueryResults"
+    },
+    "body": {
+      "queryId": "37ebc51b-2af4-1893-8071-9f210326d9a3"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "brtTHFC8paBJyhtALUgkKRaAtEfPL2AS7i44xcAc4Q2D9hws0lVu",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "476"
+    },
+    "body": {
+      "results": [
+        [
+          {
+            "field": "@ptr",
+            "value": "20016"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "5"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "4"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "6"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "3"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "10"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "8"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20015"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20014"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20013"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "20012"
+          }
+        ],
+        [
+          {
+            "field": "@ptr",
+            "value": "7"
+          }
+        ]
+      ],
+      "status": "Complete"
+    }
+  }
+}

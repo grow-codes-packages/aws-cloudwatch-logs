@@ -6,7 +6,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from _support import MockServer
+from _support import AwsMock, MockServer
 
 
 @pytest.fixture
@@ -14,3 +14,10 @@ def server() -> Iterator[MockServer]:
     srv = MockServer()
     yield srv
     srv.stop()
+
+
+@pytest.fixture
+def aws() -> Iterator[AwsMock]:
+    mock = AwsMock()
+    yield mock
+    mock.stop()

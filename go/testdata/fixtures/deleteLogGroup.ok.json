@@ -1,0 +1,26 @@
+{
+  "function": "deleteLogGroup",
+  "case": "ok",
+  "operation": "DeleteLogGroup",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DeleteLogGroup"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "JI2A5eusMiTviGMmKaMPBbuSbcacU05LP9icb7W7v8MoKeSuPQEO",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "0"
+    },
+    "body": null
+  }
+}

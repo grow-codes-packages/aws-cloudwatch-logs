@@ -1,0 +1,51 @@
+{
+  "function": "describeLogStreams",
+  "case": "page1",
+  "operation": "DescribeLogStreams",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DescribeLogStreams"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "limit": 2
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "9VcW0olyj9DZFdJ7EubfdxMsYWgQH9MWRqeeznVVDei2hkEL83yZ",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "674"
+    },
+    "body": {
+      "logStreams": [
+        {
+          "arn": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app:log-stream:big",
+          "creationTime": 1795034977525,
+          "logStreamName": "big",
+          "storedBytes": 1064960,
+          "firstEventTimestamp": 1795034915001,
+          "lastEventTimestamp": 1795034915004,
+          "lastIngestionTime": 1795034977572,
+          "uploadSequenceToken": "1"
+        },
+        {
+          "arn": "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app:log-stream:bulk",
+          "creationTime": 1795034977020,
+          "logStreamName": "bulk",
+          "storedBytes": 260000,
+          "firstEventTimestamp": 1795034895001,
+          "lastEventTimestamp": 1795034905000,
+          "lastIngestionTime": 1795034977223,
+          "uploadSequenceToken": "1"
+        }
+      ],
+      "nextToken": "cwlv-0badc0de/app@bulk"
+    }
+  }
+}
