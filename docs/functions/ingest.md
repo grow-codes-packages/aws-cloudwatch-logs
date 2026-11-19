@@ -15,6 +15,13 @@ Write log events and Embedded Metric Format (EMF) documents.
 timestamp-sorted batch. Rejected events are never retried. Moto 5.2.4 returns the end indexes one
 lower than AWS (see [Compatibility](../compatibility.md)).
 
+Because one call may not span more than 24 hours, events that are much older than the rest of the
+list end up in a batch of their own. AWS rejects events older than 14 days or than the group's
+retention, so such a batch is usually rejected as a whole: `batches` grows by one and `rejected`
+counts the events, with `tooOldLogEventEndIndex` / `expiredLogEventEndIndex` in that batch's
+`rejectedInfo` entry (checked against AWS: 1 event 15 days old + 3 current events → `batches: 2`,
+`accepted: 3`, `rejected: 1`). Events more than 2 hours in the future are rejected as too new.
+
 Throttling and transient 5xx answers are retried by the AWS SDK. A response lost after the service
 stored a batch can duplicate those events.
 
