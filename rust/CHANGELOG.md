@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/grow-codes-packages/aws-cloudwatch-logs/compare/rust-v0.1.1...rust-v0.1.2) (2026-11-19)
+
+
+### Dependencies
+
+* **rust:** Bump the rust group across 1 directory with 4 updates ([#8](https://github.com/grow-codes-packages/aws-cloudwatch-logs/issues/8)) ([2599d48](https://github.com/grow-codes-packages/aws-cloudwatch-logs/commit/2599d48d4d93045bf6864b60fe418ce257de551d))
+
 ## [0.1.1](https://github.com/grow-codes-packages/aws-cloudwatch-logs/compare/rust-v0.1.0...rust-v0.1.1) (2026-11-19)
 
 
