@@ -36,7 +36,8 @@ answer HTTP 400 for throttling and access denied). The table is identical in all
 | no AWS code, HTTP 403 | `AUTHENTICATION` when the body names `InvalidClientTokenId`, `SignatureDoesNotMatch`, `security token` or `UnrecognizedClient`, else `PERMISSION_DENIED` | no |
 | no AWS code, other status | by status (400 `VALIDATION`, 404 `NOT_FOUND`, 5xx `UNAVAILABLE`, network `UNAVAILABLE`) | 5xx / network |
 
-Error messages pass through redaction; the AWS error code of a mapped error is available with
+Error messages pass through redaction and never copy the AWS error message text (it can echo log
+data or request parameters); the AWS error code of a mapped error is available with
 `awsErrorCode(err)` (Go `AWSErrorCode`, Rust / Python `aws_error_code`).
 
 ## Functions covered by unit tests only
