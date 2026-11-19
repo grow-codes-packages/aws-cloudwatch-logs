@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 import grow_aws_cloudwatch_logs as sdk
-from _support import MockServer, Reply, make_config
+from _support import INTERNALS, AwsMock, MockServer, aws_config
 from grow_aws_cloudwatch_logs.testing import runner as r
 
 
@@ -359,27 +359,25 @@ def test_context_resolve_and_close() -> None:
 # --------------------------------------------------------------------------- core scenario
 
 
-def demo_server(server: MockServer) -> None:
-    server.defaults["/health"] = Reply(200, {"status": "ok"})
-    server.defaults["/v1/ping"] = Reply(200, {"pong": True})
-    server.defaults["/version"] = Reply(200, {"version": "1.0.0"})
+def demo_service(aws: AwsMock) -> None:
+    for _ in range(4):
+        aws.fixture("ping.ok")
 
 
 @pytest.mark.parametrize("scenario_doc", r.pytest_params(categories=["core"]))
-def test_core_scenarios_sync(server: MockServer, scenario_doc: dict[str, Any]) -> None:
-    demo_server(server)
+def test_core_scenarios_sync(aws: AwsMock, scenario_doc: dict[str, Any]) -> None:
+    demo_service(aws)
     runner = r.ConformanceRunner(
-        {"core": lambda c: sdk.CloudWatchLogsClient(make_config(server.url, token="t-1234"))},
-        capabilities={"version"},
+        {"core": lambda c: sdk.CloudWatchLogsClient(aws_config(aws.url), internals=INTERNALS)},
     )
     result = r.assert_scenario(runner, scenario_doc)
     assert result.status == "passed"
 
 
-def test_core_scenario_async_client(server: MockServer) -> None:
-    demo_server(server)
+def test_core_scenario_async_client(aws: AwsMock) -> None:
+    demo_service(aws)
     runner = r.ConformanceRunner(
-        {"core": lambda c: sdk.AsyncCloudWatchLogsClient(make_config(server.url))},
+        {"core": lambda c: sdk.AsyncCloudWatchLogsClient(aws_config(aws.url), internals=INTERNALS)},
     )
     report = runner.run()
     assert report.ok, report.summary()

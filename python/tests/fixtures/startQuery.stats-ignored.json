@@ -1,0 +1,31 @@
+{
+  "function": "startQuery",
+  "case": "stats-ignored",
+  "operation": "StartQuery",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.StartQuery"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "startTime": 1795034914,
+      "endTime": 1795034925,
+      "queryString": "stats count(*) by bin(5m)"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-amzn-requestid": "oJPHzI6E1BJv2EKOzFqpTkKNayN3nchldIltZtKTIaUFcpFiyOyC",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "51"
+    },
+    "body": {
+      "queryId": "37ebc51b-2af4-1893-8071-9f210326d9a3"
+    }
+  }
+}

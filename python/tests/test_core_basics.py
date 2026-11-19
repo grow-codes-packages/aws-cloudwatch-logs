@@ -9,7 +9,7 @@ import logging
 import pytest
 
 import grow_aws_cloudwatch_logs as sdk
-from _support import make_config
+from _support import TokenConfig, make_config
 
 # --------------------------------------------------------------------------- errors
 
@@ -161,7 +161,8 @@ def test_config_repr_redacts_credentials() -> None:
     """core.redaction.config"""
     cfg = sdk.CloudWatchLogsConfig(
         url="https://user:pw@svc.example/",
-        token="super-secret-token",
+        access_key_id="AKIAEXAMPLE",
+        secret_access_key="super-secret-token",
         headers={"X-Api-Key": "k-123", "Accept": "a"},
         proxy="http://proxyuser:proxypass@proxy:3128",
         tls=sdk.TlsConfig(ca_cert_pem="PEM", client_cert_path="/c", client_key_path="/k"),
@@ -173,7 +174,7 @@ def test_config_repr_redacts_credentials() -> None:
         assert ":pw@" not in text
         assert "[REDACTED]" in text
         assert "TlsConfig(" in text
-    assert isinstance(cfg.token, sdk.Secret)
+    assert isinstance(cfg.secret_access_key, sdk.Secret)
     assert cfg.known_secrets() == ["super-secret-token"]
     assert sdk.CloudWatchLogsConfig().known_secrets() == []
 
@@ -292,7 +293,7 @@ def test_config_env_precedence() -> None:
     """core.config.env-precedence"""
     p = sdk.ENV_PREFIX
 
-    class VendorConfig(sdk.CloudWatchLogsConfig):
+    class VendorConfig(TokenConfig):
         ENV_VENDOR = {"URL": ("VENDOR_ADDR", "OTHER_ADDR"), "TOKEN": ("VENDOR_TOKEN",)}
 
     # default
@@ -331,7 +332,7 @@ def test_config_from_env_common_fields() -> None:
         p + "INSECURE_SKIP_VERIFY": "true",
         p + "PROXY": "http://proxy:3128",
     }
-    cfg = sdk.CloudWatchLogsConfig.from_env(env)
+    cfg = TokenConfig.from_env(env)
     assert cfg.url == "https://svc:8443"
     assert cfg.token is not None and cfg.token.reveal() == "tok-12345"
     assert (cfg.connect_timeout, cfg.request_timeout, cfg.total_timeout) == (1.5, 5.0, 60.0)
@@ -343,7 +344,7 @@ def test_config_from_env_common_fields() -> None:
         insecure_skip_verify=True,
     )
     assert cfg.proxy == "http://proxy:3128"
-    explicit = sdk.CloudWatchLogsConfig.from_env(env, retry=sdk.RetryPolicy(max_retries=0))
+    explicit = TokenConfig.from_env(env, retry=sdk.RetryPolicy(max_retries=0))
     assert explicit.retry.max_retries == 0
 
 
@@ -372,7 +373,7 @@ def test_config_defaults_and_timedelta() -> None:
         ({"retry": sdk.RetryPolicy(multiplier=0.5)}, "multiplier"),
         ({"tls": sdk.TlsConfig(client_cert_path="/c")}, "together"),
         ({"proxy": "nope"}, "proxy"),
-        ({"token": "   "}, "token"),
+        ({"access_key_id": "AKIAEXAMPLE"}, "secret_access_key"),
     ],
 )
 def test_config_validate(kwargs: dict[str, object], fragment: str) -> None:

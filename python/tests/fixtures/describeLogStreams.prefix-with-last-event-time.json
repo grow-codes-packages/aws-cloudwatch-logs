@@ -1,0 +1,33 @@
+{
+  "function": "describeLogStreams",
+  "case": "prefix-with-last-event-time",
+  "operation": "DescribeLogStreams",
+  "recordedWith": "motoserver/moto:5.2.4 (IAM auth on), raw AWS JSON 1.1 via curl --aws-sigv4",
+  "request": {
+    "method": "POST",
+    "path": "/",
+    "headers": {
+      "Content-Type": "application/x-amz-json-1.1",
+      "X-Amz-Target": "Logs_20140328.DescribeLogStreams"
+    },
+    "body": {
+      "logGroupName": "cwlv-0badc0de/app",
+      "orderBy": "LastEventTime",
+      "logStreamNamePrefix": "s"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "x-amzn-errortype": "InvalidParameterException",
+      "content-type": "application/json",
+      "status": "400",
+      "x-amzn-requestid": "xcNKZdk4xmSnE1BTJNEcwLFjGJZQIHyf1ogn5ula1qXANlDwFUMh",
+      "content-length": "111"
+    },
+    "body": {
+      "__type": "InvalidParameterException",
+      "message": "Cannot order by LastEventTime with a logStreamNamePrefix."
+    }
+  }
+}
