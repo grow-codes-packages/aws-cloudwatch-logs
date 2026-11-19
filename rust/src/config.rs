@@ -204,8 +204,8 @@ impl CloudWatchLogsConfig {
         self.log_stream.as_deref()
     }
 
-    /// AWS account used to build log group ARNs for live tail (`None` = STS
-    /// `GetCallerIdentity`, once).
+    /// AWS account used to build log group ARNs for live tail (`None` = look the group up with
+    /// `DescribeLogGroups`).
     pub fn account_id(&self) -> Option<&str> {
         self.account_id.as_deref()
     }
@@ -496,7 +496,7 @@ impl CloudWatchLogsConfigBuilder {
         self
     }
     /// AWS account id for live-tail ARNs (env `GROW_AWS_CLOUDWATCH_LOGS_ACCOUNT_ID`; default:
-    /// STS `GetCallerIdentity`).
+    /// the ARN is looked up with `DescribeLogGroups`).
     pub fn account_id(mut self, account: impl Into<String>) -> Self {
         self.account_id = Some(account.into());
         self

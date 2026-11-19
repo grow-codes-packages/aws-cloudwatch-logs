@@ -89,12 +89,10 @@ fn blocking_methods() {
         )
         .unwrap();
     assert_eq!(res.accepted, 1);
-    assert_eq!(
-        c.emf("m", 1.0, &BTreeMap::new(), EmfOptions::default())
-            .unwrap()
-            .accepted,
-        1
-    );
+    assert!(c
+        .emf("m", 1.0, &BTreeMap::new(), EmfOptions::default())
+        .unwrap()
+        .contains("\"m\":1"));
     assert!(!c
         .filter_log_events(FilterLogEventsOptions::default())
         .unwrap()

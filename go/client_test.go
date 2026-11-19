@@ -408,11 +408,6 @@ func TestClientCore(t *testing.T) {
 			t.Fatalf("%v %s", err, c.Region())
 		}
 		_ = c.Close()
-		// a custom API without STS cannot build ARNs without an account id
-		c2, _ := NewClient(Config{SDKClient: c.SDK(), Region: "us-east-1"})
-		if _, err := c2.account(t.Context()); !errors.Is(err, ErrConfig) {
-			t.Fatal(err)
-		}
 	})
 	t.Run("credentials provider", func(t *testing.T) {
 		m := newAWSMock(t).on("DescribeLogGroups", replay(t, "ping.ok"))
@@ -424,46 +419,29 @@ func TestClientCore(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("assume role and account lookup", func(t *testing.T) {
-		m := newAWSMock(t)
-		m.on("AssumeRole", rawReply(200, "text/xml", `<AssumeRoleResponse><AssumeRoleResult><Credentials>
+	t.Run("assume role via the standard STS endpoint", func(t *testing.T) {
+		// STS ignores Config.URL and uses the standard resolution (AWS_ENDPOINT_URL_STS).
+		stsMock := newAWSMock(t)
+		stsMock.on("AssumeRole", rawReply(200, "text/xml", `<AssumeRoleResponse><AssumeRoleResult><Credentials>
 <AccessKeyId>ASIAROLE</AccessKeyId><SecretAccessKey>role-secret</SecretAccessKey><SessionToken>role-token</SessionToken>
 <Expiration>2099-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::1:assumed-role/r/s</Arn>
 <AssumedRoleId>AROA:s</AssumedRoleId></AssumedRoleUser></AssumeRoleResult></AssumeRoleResponse>`))
-		m.on("GetCallerIdentity", rawReply(200, "text/xml", `<GetCallerIdentityResponse><GetCallerIdentityResult>
-<Account>210987654321</Account><Arn>arn:aws:sts::210987654321:assumed-role/r/s</Arn><UserId>AROA:s</UserId>
-</GetCallerIdentityResult></GetCallerIdentityResponse>`))
-		m.on("DescribeLogGroups", replay(t, "ping.ok"))
+		t.Setenv("AWS_ENDPOINT_URL_STS", stsMock.URL)
+		m := newAWSMock(t).on("DescribeLogGroups", replay(t, "ping.ok"))
 		c := newMockClient(t, m, func(cfg *Config) {
 			cfg.RoleARN, cfg.ExternalID, cfg.AccountID = "arn:aws:iam::1:role/r", "ext-1234", ""
 		})
 		if _, err := c.Ping(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		if got := m.callsOf("AssumeRole"); len(got) != 1 || got[0].Req.PostForm.Get("RoleSessionName") != DefaultRoleSessionName {
+		if got := stsMock.callsOf("AssumeRole"); len(got) != 1 || got[0].Req.PostForm.Get("RoleSessionName") != DefaultRoleSessionName {
 			t.Fatalf("assume role calls: %d", len(got))
+		}
+		if len(m.callsOf("AssumeRole")) != 0 {
+			t.Fatal("STS used Config.URL")
 		}
 		if !strings.Contains(m.callsOf("DescribeLogGroups")[0].Req.Header.Get("Authorization"), "ASIAROLE") {
 			t.Fatal("role credentials not used")
-		}
-		acct, err := c.account(t.Context())
-		if err != nil || acct != "210987654321" {
-			t.Fatalf("%s %v", acct, err)
-		}
-		if acct, _ = c.account(t.Context()); acct != "210987654321" || len(m.callsOf("GetCallerIdentity")) != 1 {
-			t.Fatal("account not cached")
-		}
-		bad := newAWSMock(t).on("GetCallerIdentity", rawReply(403, "text/xml",
-			`<ErrorResponse><Error><Code>InvalidClientTokenId</Code><Message>bad</Message></Error></ErrorResponse>`))
-		c3 := newMockClient(t, bad, func(cfg *Config) { cfg.AccountID = "" })
-		if _, err := c3.account(t.Context()); !errors.Is(err, ErrAuthentication) {
-			t.Fatal(err)
-		}
-		empty := newAWSMock(t).on("GetCallerIdentity", rawReply(200, "text/xml",
-			`<GetCallerIdentityResponse><GetCallerIdentityResult></GetCallerIdentityResult></GetCallerIdentityResponse>`))
-		c4 := newMockClient(t, empty, func(cfg *Config) { cfg.AccountID = "" })
-		if _, err := c4.account(t.Context()); !errors.Is(err, ErrUnavailable) {
-			t.Fatal(err)
 		}
 	})
 }

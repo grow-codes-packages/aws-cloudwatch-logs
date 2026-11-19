@@ -428,13 +428,13 @@ pub(crate) fn timeout_config(config: &CommonConfig) -> TimeoutConfig {
 /// The AWS SDK clients built from the configuration.
 pub(crate) struct SdkClients {
     pub logs: aws_sdk_cloudwatchlogs::Client,
-    pub sts: Option<aws_sdk_sts::Client>,
     pub region: Option<String>,
 }
 
 /// Loads the AWS configuration (region, credential chain, optional assume-role) and builds the
-/// SDK clients (CloudWatch Logs, plus STS for the account id of live-tail ARNs). Runs on the
-/// first call of the client.
+/// CloudWatch Logs client. STS (assume-role) uses the standard endpoint resolution
+/// (`AWS_ENDPOINT_URL_STS`, `AWS_ENDPOINT_URL`, the regional endpoint), never the configured
+/// `url`. Runs on the first call of the client.
 pub(crate) async fn build_sdk_clients(
     config: &CloudWatchLogsConfig,
     http: GrowHttpClient,
@@ -473,31 +473,19 @@ pub(crate) async fn build_sdk_clients(
         if let Some(id) = config.external_id() {
             assume = assume.external_id(id.expose_secret());
         }
-        let mut base = sdk_config.clone();
-        if let Some(endpoint) = config.endpoint() {
-            base = base
-                .into_builder()
-                .endpoint_url(endpoint.as_str().trim_end_matches('/'))
-                .build();
-        }
-        let provider = assume.configure(&base).build().await;
+        let provider = assume.configure(&sdk_config).build().await;
         sdk_config = sdk_config
             .into_builder()
             .credentials_provider(SharedCredentialsProvider::new(provider))
             .build();
     }
     let mut logs = aws_sdk_cloudwatchlogs::config::Builder::from(&sdk_config);
-    let mut sts = aws_sdk_sts::config::Builder::from(&sdk_config);
     if let Some(endpoint) = config.endpoint() {
-        let url = endpoint.as_str().trim_end_matches('/');
-        logs = logs.endpoint_url(url);
-        sts = sts.endpoint_url(url);
+        logs = logs.endpoint_url(endpoint.as_str().trim_end_matches('/'));
     }
     logs = logs.interceptor(GrowInterceptor::new(config));
-    sts = sts.interceptor(GrowInterceptor::new(config));
     Ok(SdkClients {
         logs: aws_sdk_cloudwatchlogs::Client::from_conf(logs.build()),
-        sts: Some(aws_sdk_sts::Client::from_conf(sts.build())),
         region: Some(region),
     })
 }

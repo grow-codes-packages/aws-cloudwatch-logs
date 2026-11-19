@@ -46,9 +46,10 @@ type PutLogEventsOptions struct {
 
 // RejectedInfo is the rejectedLogEventsInfo of one PutLogEvents call. The
 // indexes refer to the timestamp-sorted events of that batch and are -1 when
-// absent. As documented by AWS, TooOldLogEventEndIndex and
+// absent. As returned by AWS, TooOldLogEventEndIndex and
 // ExpiredLogEventEndIndex are exclusive (events [0, index) were rejected) and
 // TooNewLogEventStartIndex is inclusive (events [index, n) were rejected).
+// Moto 5.2.4 returns end indexes one lower (see docs/compatibility.md).
 type RejectedInfo struct {
 	// Batch is the 0-based index of the PutLogEvents call within PutLogEvents.
 	Batch                    int

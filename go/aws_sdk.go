@@ -3,6 +3,8 @@ package cloudwatchlogs
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"log/slog"
@@ -10,6 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -51,11 +55,6 @@ type API interface {
 }
 
 var _ API = (*cwl.Client)(nil)
-
-// stsAPI is the STS call used to find the account id for live-tail ARNs.
-type stsAPI interface {
-	GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error)
-}
 
 // attemptKey carries the per-operation attempt counter through the SDK stack.
 type attemptKey struct{}
@@ -102,6 +101,9 @@ func (h *hookedHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		req.Header.Set("User-Agent", h.userAgent)
 	}
 	op := operationOf(req.Header.Get("X-Amz-Target"))
+	if op == "StartLiveTail" {
+		detachBody(req)
+	}
 	cancel := context.CancelFunc(func() {})
 	if h.requestTimeout > 0 && op != "StartLiveTail" { // live tail sessions last up to 3 h
 		var ctx context.Context
@@ -118,6 +120,9 @@ func (h *hookedHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		h.hooks.error(ErrorInfo{Method: req.Method, URL: safeURL, Err: errors.New("request failed: " + innerMessage(err)), Attempt: attempt, WillRetry: willRetry})
 		h.log(slog.LevelDebug, "request failed", slog.String("operation", op), slog.Int("attempt", attempt))
 		return nil, err
+	}
+	if res.StatusCode >= 400 && op != "" {
+		normalizeXMLError(res) // JSON-protocol (CloudWatch Logs) calls only; STS speaks XML itself
 	}
 	res.Body = &cancelOnClose{ReadCloser: res.Body, cancel: cancel}
 	rid := requestID(res.Header)
@@ -201,7 +206,6 @@ func noRetry(o *cwl.Options) { o.Retryer = aws.NopRetryer{} }
 // sdkParts is what buildSDK produces.
 type sdkParts struct {
 	api       API
-	sts       stsAPI
 	region    string
 	transport *http.Transport
 }
@@ -283,14 +287,12 @@ func buildSDK(ctx context.Context, cfg Config) (*sdkParts, error) {
 	if awsCfg.Region == "" {
 		return nil, ConfigError("region is not set (GROW_AWS_CLOUDWATCH_LOGS_REGION, AWS_REGION or the profile)")
 	}
-	withEndpoint := func(o *sts.Options) {
-		if cfg.URL != "" {
-			o.BaseEndpoint = aws.String(cfg.URL)
-		}
-		o.APIOptions = append(o.APIOptions, addAttemptCounter)
-	}
-	stsClient := sts.NewFromConfig(awsCfg, withEndpoint)
 	if cfg.RoleARN != "" {
+		// STS uses the standard endpoint resolution (AWS_ENDPOINT_URL_STS,
+		// AWS_ENDPOINT_URL, the regional endpoint), never cfg.URL.
+		stsClient := sts.NewFromConfig(awsCfg, func(o *sts.Options) {
+			o.APIOptions = append(o.APIOptions, addAttemptCounter)
+		})
 		provider := stscreds.NewAssumeRoleProvider(stsClient, cfg.RoleARN, func(o *stscreds.AssumeRoleOptions) {
 			o.RoleSessionName = DefaultRoleSessionName
 			if cfg.RoleSessionName != "" {
@@ -301,7 +303,6 @@ func buildSDK(ctx context.Context, cfg Config) (*sdkParts, error) {
 			}
 		})
 		awsCfg.Credentials = aws.NewCredentialsCache(provider)
-		stsClient = sts.NewFromConfig(awsCfg, withEndpoint)
 	}
 	client := cwl.NewFromConfig(awsCfg, func(o *cwl.Options) {
 		if cfg.URL != "" {
@@ -309,7 +310,7 @@ func buildSDK(ctx context.Context, cfg Config) (*sdkParts, error) {
 		}
 		o.APIOptions = append(o.APIOptions, addAttemptCounter)
 	})
-	return &sdkParts{api: client, sts: stsClient, region: awsCfg.Region, transport: tr}, nil
+	return &sdkParts{api: client, region: awsCfg.Region, transport: tr}, nil
 }
 
 // fractionalMillis matches a JSON epoch-millisecond number with a fraction
@@ -344,3 +345,75 @@ func tolerantMillis(o *cwl.Options) {
 		return stack.Deserialize.Add(integerMillis, middleware.After)
 	})
 }
+
+// maxXMLErrorBody bounds how much of a non-JSON error body is read.
+const maxXMLErrorBody = 64 << 10
+
+// normalizeXMLError rewrites an XML error body (Moto answers IAM/auth failures
+// on the JSON protocol with a query-protocol <ErrorResponse>) into the AWS
+// JSON 1.1 error shape, so the SDK reports the real error code instead of a
+// JSON decode failure (whose snapshot no longer carries the body on Go 1.27).
+// Bodies that are not XML errors are restored unchanged.
+func normalizeXMLError(res *http.Response) {
+	if res.Body == nil || strings.Contains(res.Header.Get("Content-Type"), "json") {
+		return
+	}
+	raw, err := io.ReadAll(io.LimitReader(res.Body, maxXMLErrorBody))
+	_ = res.Body.Close()
+	restore := func(b []byte) {
+		res.Body = io.NopCloser(bytes.NewReader(b))
+		res.ContentLength = int64(len(b))
+		res.Header.Set("Content-Length", strconv.Itoa(len(b)))
+	}
+	if err != nil {
+		restore(raw)
+		return
+	}
+	var doc struct {
+		Code    string `xml:"Errors>Error>Code"`
+		Message string `xml:"Errors>Error>Message"`
+		Code2   string `xml:"Error>Code"`
+		Msg2    string `xml:"Error>Message"`
+	}
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || trimmed[0] != '<' || xml.Unmarshal(trimmed, &doc) != nil {
+		restore(raw)
+		return
+	}
+	code, msg := doc.Code, doc.Message
+	if code == "" {
+		code, msg = doc.Code2, doc.Msg2
+	}
+	if code == "" {
+		restore(raw)
+		return
+	}
+	body, _ := json.Marshal(map[string]string{"__type": code, "message": msg})
+	res.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	res.Header.Set("X-Amzn-Errortype", code)
+	restore(body)
+}
+
+// detachBody buffers a small request body so the transport owns it: the SDK
+// closes an event-stream operation's request body as soon as the response
+// headers arrive, and a Close error racing the transport's final body write
+// makes it drop the connection (and with it the live-tail stream).
+func detachBody(req *http.Request) {
+	if req.Body == nil || req.Body == http.NoBody {
+		return
+	}
+	raw, err := io.ReadAll(io.LimitReader(req.Body, 1<<20))
+	_ = req.Body.Close()
+	if err != nil {
+		req.Body = io.NopCloser(&errReader{err: err})
+		return
+	}
+	req.Body = io.NopCloser(bytes.NewReader(raw))
+	req.ContentLength = int64(len(raw))
+	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(raw)), nil }
+}
+
+// errReader returns err on every Read.
+type errReader struct{ err error }
+
+func (r *errReader) Read([]byte) (int, error) { return 0, r.err }

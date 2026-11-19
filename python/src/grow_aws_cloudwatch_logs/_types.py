@@ -145,14 +145,17 @@ class StreamLogEvent:
 class RejectedLogEventsInfo:
     """Events of one batch the service did not store (indexes into the sorted batch).
 
-    As documented by AWS the ``…end_index`` fields are inclusive (events ``0..index`` were
-    rejected) and ``too_new_log_event_start_index`` is the first rejected event at the end.
+    As returned by AWS the ``…end_index`` fields are exclusive (events ``0..index-1`` were
+    rejected) and ``too_new_log_event_start_index`` is the first rejected event at the end
+    (inclusive). Moto 5.2.4 returns end indexes one lower.
 
     Attributes:
         batch: index of the batch within the call (0-based).
-        too_old_log_event_end_index: last event older than 14 days or the retention.
+        too_old_log_event_end_index: end (exclusive) of the events older than 14 days or the
+            retention.
         too_new_log_event_start_index: first event more than 2 hours in the future.
-        expired_log_event_end_index: last event older than the retention period.
+        expired_log_event_end_index: end (exclusive) of the events older than the retention
+            period.
     """
 
     batch: int

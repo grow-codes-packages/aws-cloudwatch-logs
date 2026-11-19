@@ -1518,7 +1518,7 @@ public final class CloudWatchLogsClient implements AutoCloseable {
     if (info == null) {
       return 0;
     }
-    int oldEnd = -1;
+    int oldEnd = 0;
     int newStart = size;
     if (info.tooOldLogEventEndIndex() != null) {
       oldEnd = Math.max(oldEnd, info.tooOldLogEventEndIndex());
@@ -1535,8 +1535,9 @@ public final class CloudWatchLogsClient implements AutoCloseable {
             optInt(info.tooOldLogEventEndIndex()),
             optInt(info.tooNewLogEventStartIndex()),
             optInt(info.expiredLogEventEndIndex())));
-    // AWS documents the "end index" fields as inclusive.
-    int old = Math.min(size, oldEnd + 1);
+    // AWS returns the "end index" fields as exclusive (events 0..end-1 were rejected); Moto 5.2.4
+    // returns them one lower.
+    int old = Math.min(size, oldEnd);
     int tooNew = Math.max(0, size - Math.max(newStart, old));
     return old + tooNew;
   }

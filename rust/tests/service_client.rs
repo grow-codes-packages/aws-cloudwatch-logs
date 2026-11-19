@@ -488,17 +488,16 @@ async fn hooks_user_agent_headers_and_retries() {
 }
 
 #[tokio::test]
-async fn account_lookup_with_sts() {
+async fn log_group_arn_lookup_with_describe_log_groups() {
+    // Without an account id the ARN comes from DescribeLogGroups (no STS permission needed).
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(body_string_contains("Action=GetCallerIdentity"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(
-            r#"<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/"><GetCallerIdentityResult><Arn>arn:aws:iam::210987654321:user/x</Arn><UserId>AID</UserId><Account>210987654321</Account></GetCallerIdentityResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></GetCallerIdentityResponse>"#,
-            "text/xml",
-        ))
-        .expect(1)
+        .respond_with(ResponseTemplate::new(500))
+        .expect(0)
         .mount(&server)
         .await;
+    on_fixture(&server, "describeLogGroups.prefix").await;
     let c = CloudWatchLogsClient::new(
         CloudWatchLogsConfig::builder()
             .url(server.uri())
@@ -510,15 +509,16 @@ async fn account_lookup_with_sts() {
     )
     .unwrap();
     assert_eq!(
-        c.log_group_arn("app/web").await.unwrap(),
-        "arn:aws:logs:eu-central-1:210987654321:log-group:app/web"
+        c.log_group_arn("cwlv-0badc0de/app").await.unwrap(),
+        "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app"
     );
-    // cached
-    assert!(c
-        .log_group_arn("other")
-        .await
-        .unwrap()
-        .contains("210987654321"));
+    assert_eq!(
+        c.log_group_arn("cwlv-0badc0de/missing")
+            .await
+            .unwrap_err()
+            .code(),
+        ErrorCode::NotFound
+    );
     assert_eq!(
         c.log_group_arn("arn:aws:logs:x:1:log-group:g:*")
             .await
@@ -529,42 +529,21 @@ async fn account_lookup_with_sts() {
         c.log_group_arn("bad name").await.unwrap_err().code(),
         ErrorCode::Validation
     );
-
-    // STS answering without an account
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(
-            r#"<GetCallerIdentityResponse><GetCallerIdentityResult></GetCallerIdentityResult></GetCallerIdentityResponse>"#,
-            "text/xml",
-        ))
-        .mount(&server)
-        .await;
-    let c = CloudWatchLogsClient::new(
-        CloudWatchLogsConfig::builder()
-            .url(server.uri())
-            .region("eu-central-1")
-            .access_key_id("AK")
-            .secret_access_key("secret-value")
-            .build()
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        c.log_group_arn("g").await.unwrap_err().code(),
-        ErrorCode::Unavailable
-    );
 }
 
 #[tokio::test]
 async fn sdk_client_injection() {
-    let fake = FakeHttp::new(vec![Reply::Status(200, r#"{"logGroups":[]}"#.into())]);
+    let fake = FakeHttp::new(vec![
+        Reply::Status(200, r#"{"logGroups":[]}"#.into()),
+        Reply::Status(200, r#"{"logGroups":[]}"#.into()),
+    ]);
     let c = CloudWatchLogsClient::with_sdk_client(fake.sdk_client()).unwrap();
     c.ping().await.unwrap();
     assert_eq!(c.region().await.unwrap(), "us-east-1");
-    // no STS without account id
+    // no account id: the ARN is looked up with DescribeLogGroups
     assert_eq!(
         c.log_group_arn("g").await.unwrap_err().code(),
-        ErrorCode::Config
+        ErrorCode::NotFound
     );
     c.close().await;
     // the caller's SDK client still works
@@ -599,6 +578,8 @@ async fn missing_region_is_config() {
 
 #[tokio::test]
 async fn assume_role_uses_sts_first() {
+    // STS uses the standard endpoint resolution (AWS_ENDPOINT_URL_STS), never the configured url.
+    let sts = MockServer::start().await;
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(body_string_contains("Action=AssumeRole"))
@@ -608,8 +589,9 @@ async fn assume_role_uses_sts_first() {
             "text/xml",
         ))
         .expect(1..)
-        .mount(&server)
+        .mount(&sts)
         .await;
+    std::env::set_var("AWS_ENDPOINT_URL_STS", sts.uri());
     on_fixture(&server, "ping.ok").await;
     let c = CloudWatchLogsClient::new(
         builder(&server)
@@ -625,6 +607,11 @@ async fn assume_role_uses_sts_first() {
         .iter()
         .find(|r| r.headers.get("x-amz-target").is_some())
         .unwrap();
-    let auth = logs_call.headers.get("authorization").unwrap().to_str().unwrap();
+    let auth = logs_call
+        .headers
+        .get("authorization")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(auth.contains("Credential=ASIAROLE/"), "{auth}");
 }

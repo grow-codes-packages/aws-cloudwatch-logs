@@ -36,7 +36,8 @@ fn delete_result(result: Result<()>, opts: DeleteOptions) -> Result<bool> {
 impl CloudWatchLogsClient {
     /// Creates the log group when missing. On an existing group it adds the requested tags
     /// (never removes any), re-applies the retention and checks the KMS key (`CONFLICT` when it
-    /// differs). Invalid names and retention values are `VALIDATION` errors.
+    /// differs). `retention_days`: `None` leaves the retention unchanged, `Some(0)` removes it
+    /// (never expire). Invalid names and retention values are `VALIDATION` errors.
     pub async fn ensure_log_group(
         &self,
         name: &str,
@@ -84,13 +85,20 @@ impl CloudWatchLogsClient {
                 self.run(&op, call).await?;
             }
         }
-        if let Some(days) = opts.retention_days.filter(|d| *d > 0) {
-            let call = sdk
-                .put_retention_policy()
-                .log_group_name(name)
-                .retention_in_days(days as i32)
-                .send();
-            self.run(&op, call).await?;
+        match opts.retention_days {
+            None => {}
+            Some(0) => {
+                let call = sdk.delete_retention_policy().log_group_name(name).send();
+                self.run(&op, call).await?;
+            }
+            Some(days) => {
+                let call = sdk
+                    .put_retention_policy()
+                    .log_group_name(name)
+                    .retention_in_days(days as i32)
+                    .send();
+                self.run(&op, call).await?;
+            }
         }
         Ok(result)
     }

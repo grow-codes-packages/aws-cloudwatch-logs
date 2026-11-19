@@ -58,7 +58,7 @@ func run() error {
 	fmt.Println("ping:", latency)
 
 	// Bootstrap: group (retention + tags) and stream; both calls are idempotent.
-	created, err := client.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: 7, Tags: map[string]string{"team": "sdk"}})
+	created, err := client.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: cloudwatchlogs.Days(7), Tags: map[string]string{"team": "sdk"}})
 	if err != nil {
 		return err
 	}

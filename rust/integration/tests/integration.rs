@@ -340,7 +340,7 @@ async fn ingest_and_query_functions() {
         )
         .await
         .unwrap();
-    assert_eq!(res.accepted, 1);
+    assert!(res.contains(&marker), "{res}");
     let emf = c
         .get_log_events(
             &group,

@@ -125,7 +125,7 @@ describe("CloudWatchLogsExporter", () => {
 
   it("reports oversized (drop/error) and service-rejected records with an error", async () => {
     const { client } = await setup({ maxEventBytes: 200, oversizePolicy: "error" }, () =>
-      ok({ rejectedLogEventsInfo: { tooOldLogEventEndIndex: 0 } }),
+      ok({ rejectedLogEventsInfo: { tooOldLogEventEndIndex: 1 } }),
     );
     const exporter = new CloudWatchLogsExporter(client, {
       group: "app/logs",
@@ -273,6 +273,9 @@ describe("logClient + logQueryClient", () => {
       () => client.close(),
     );
     expect(() => client.logClient()).toThrow(/config.logGroup/);
+    expect(() => client.exporter()).toThrow(/config.logGroup/);
+    expect(() => client.exporter({ group: "bad group!" })).toThrow(/exporter/);
+    expect(client.exporter({ group: "g", stream: "s" })).toBeInstanceOf(CloudWatchLogsExporter);
     expect(() => client.logQueryClient()).toThrow(/config.logGroup/);
     expect(() => client.logClient({ group: "g", stream: "bad:stream" })).toThrow(/log stream/);
   });

@@ -51,7 +51,6 @@ pub(crate) struct Inner {
     closed: AtomicBool,
     close_token: CancellationToken,
     on_close: CloseGroup,
-    account: Mutex<Option<String>>,
     log_clients: Mutex<Vec<BatchingLogClient>>,
     pub(crate) sessions: Mutex<Vec<Arc<SessionControl>>>,
 }
@@ -100,7 +99,6 @@ impl CloudWatchLogsClient {
                     .or_else(|| client.config().region().map(|r| r.to_string()));
                 let _ = sdk.set(SdkClients {
                     logs: client.clone(),
-                    sts: None,
                     region,
                 });
                 None
@@ -112,7 +110,6 @@ impl CloudWatchLogsClient {
             .log_stream()
             .map(str::to_owned)
             .unwrap_or_else(default_stream_name);
-        let account = Mutex::new(config.account_id().map(str::to_owned));
         Ok(CloudWatchLogsClient {
             inner: Arc::new(Inner {
                 config,
@@ -124,7 +121,6 @@ impl CloudWatchLogsClient {
                 closed: AtomicBool::new(false),
                 close_token: CancellationToken::new(),
                 on_close: CloseGroup::new(),
-                account,
                 log_clients: Mutex::new(Vec::new()),
                 sessions: Mutex::new(Vec::new()),
             }),
@@ -138,8 +134,7 @@ impl CloudWatchLogsClient {
     }
 
     /// Wraps an existing AWS SDK client; `close()` leaves it usable. Grow hooks, TLS, proxy,
-    /// headers and User-Agent settings do not apply to it, and live tail needs
-    /// [`account_id`](crate::CloudWatchLogsConfigBuilder::account_id) or ARNs.
+    /// headers and User-Agent settings do not apply to it.
     pub fn with_sdk_client(sdk_client: aws_sdk_cloudwatchlogs::Client) -> Result<Self> {
         Self::new(
             CloudWatchLogsConfig::builder()
@@ -283,9 +278,10 @@ impl CloudWatchLogsClient {
         self.inner.closed.load(Ordering::SeqCst)
     }
 
-    /// `arn:<partition>:logs:<region>:<account>:log-group:<name>` for a group name (the account
-    /// comes from the configuration or STS `GetCallerIdentity`); an ARN is returned without
-    /// `:*`.
+    /// ARN of a log group (without `:*`). For a name it is built from the region and the
+    /// configured [`account_id`](crate::CloudWatchLogsConfigBuilder::account_id) when set,
+    /// otherwise the group is looked up with `DescribeLogGroups` (`NOT_FOUND` when it does not
+    /// exist); an ARN is returned without `:*`.
     pub async fn log_group_arn(&self, group: &str) -> Result<String> {
         self.group_arn("logGroupArn", group).await
     }
@@ -361,39 +357,15 @@ impl CloudWatchLogsClient {
         }
     }
 
-    /// The AWS account id (configuration, else STS `GetCallerIdentity`, cached).
-    pub(crate) async fn account(&self, operation: &str) -> Result<String> {
-        if let Some(id) = lock(&self.inner.account).clone() {
-            return Ok(id);
-        }
-        let clients = self.clients(operation).await?;
-        let Some(sts) = &clients.sts else {
-            return Err(Error::config(format!(
-                "{operation}: accountId is required to build log group ARNs (GROW_AWS_CLOUDWATCH_LOGS_ACCOUNT_ID)"
-            )));
-        };
-        let out = self
-            .run(operation, sts.get_caller_identity().send())
-            .await?;
-        let id = out
-            .account()
-            .filter(|a| !a.is_empty())
-            .ok_or_else(|| {
-                Error::unavailable(format!(
-                    "{operation}: getCallerIdentity returned no account"
-                ))
-            })?
-            .to_owned();
-        *lock(&self.inner.account) = Some(id.clone());
-        Ok(id)
-    }
-
-    /// ARN of a group given by name or ARN (built from region and account).
+    /// ARN of a group given by name or ARN (see [`log_group_arn`](Self::log_group_arn)).
     pub(crate) async fn group_arn(&self, operation: &str, group: &str) -> Result<String> {
         if group.starts_with("arn:") {
             return Ok(crate::models::trim_star_arn(group).to_owned());
         }
         validate_group_name(operation, group)?;
+        let Some(account) = self.config().account_id().map(str::to_owned) else {
+            return Ok(self.find_group(operation, group).await?.arn);
+        };
         let region = self
             .clients(operation)
             .await?
@@ -404,7 +376,6 @@ impl CloudWatchLogsClient {
                     "{operation}: region is required to build log group ARNs"
                 ))
             })?;
-        let account = self.account(operation).await?;
         Ok(format!(
             "arn:{}:logs:{region}:{account}:log-group:{group}",
             partition_of(&region)

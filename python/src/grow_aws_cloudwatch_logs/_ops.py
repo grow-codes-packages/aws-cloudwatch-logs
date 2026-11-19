@@ -618,7 +618,7 @@ class Ops:
             info = out.get("rejectedLogEventsInfo")
             count = 0
             if info:
-                old_end = -1
+                old_end = 0
                 new_start = len(batch)
                 too_old = info.get("tooOldLogEventEndIndex")
                 expired = info.get("expiredLogEventEndIndex")
@@ -628,8 +628,9 @@ class Ops:
                         old_end = max(old_end, value)
                 if isinstance(too_new, int):
                     new_start = min(new_start, too_new)
-                # AWS documents the "end index" fields as inclusive.
-                old = min(len(batch), old_end + 1)
+                # AWS returns the "end index" fields as exclusive (events 0..end-1 were
+                # rejected); Moto 5.2.4 returns them one lower.
+                old = min(len(batch), old_end)
                 count = old + max(0, len(batch) - max(new_start, old))
                 infos.append(
                     RejectedLogEventsInfo(

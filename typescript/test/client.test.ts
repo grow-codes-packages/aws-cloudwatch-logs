@@ -355,11 +355,12 @@ describe("CloudWatchLogsClient core", () => {
     await expect(c.serverVersion()).rejects.toMatchObject({ code: "UNSUPPORTED" });
   });
 
-  it("close is idempotent and later calls fail with CONFIG", async () => {
+  it("close is idempotent and later calls fail with CANCELLED", async () => {
     const c = client(await fake(() => fixtureResponse("ping.ok")));
     await c.close();
     await c.close();
-    await expect(c.ping()).rejects.toMatchObject({ code: "CONFIG" });
+    await expect(c.ping()).rejects.toMatchObject({ code: "CANCELLED" });
+    await expect(c.ensureLogGroup("app/web")).rejects.toMatchObject({ code: "CANCELLED" });
   });
 
   it("never destroys a caller-supplied SDK client", async () => {

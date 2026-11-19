@@ -502,11 +502,25 @@ def test_put_log_events_sorts_and_reports(aws: AwsMock) -> None:
         sent = aws.bodies("PutLogEvents")[0]
         assert [e["message"] for e in sent["logEvents"]][:2] == ["a", "b"]
         assert "sequenceToken" not in sent
+        # Moto 5.2.4 returns the end index one lower than AWS: read with the AWS rule
+        res = c.put_log_events(G, "s3", [{"message": m, "timestamp": 1} for m in "xyz"])
+        assert (res.accepted, res.rejected) == (2, 1)
+        assert res.rejected_info == [
+            sdk.RejectedLogEventsInfo(
+                batch=0, too_old_log_event_end_index=0, too_new_log_event_start_index=2
+            )
+        ]
+
+
+def test_put_log_events_rejected_aws_exclusive_end_index(aws: AwsMock) -> None:
+    # real AWS: [old, ok, new] -> tooOldLogEventEndIndex 1 (exclusive), tooNewLogEventStartIndex 2
+    aws.fixture("putLogEvents.rejected-aws")
+    with client(aws) as c:
         res = c.put_log_events(G, "s3", [{"message": m, "timestamp": 1} for m in "xyz"])
         assert (res.accepted, res.rejected) == (1, 2)
         assert res.rejected_info == [
             sdk.RejectedLogEventsInfo(
-                batch=0, too_old_log_event_end_index=0, too_new_log_event_start_index=2
+                batch=0, too_old_log_event_end_index=1, too_new_log_event_start_index=2
             )
         ]
 
@@ -518,7 +532,7 @@ def test_put_log_events_expired_index(aws: AwsMock) -> None:
     )
     with client(aws) as c:
         res = c.put_log_events(G, "s1", [{"message": "a", "timestamp": i} for i in range(4)])
-    assert (res.accepted, res.rejected) == (2, 2)
+    assert (res.accepted, res.rejected) == (3, 1)
     assert res.rejected_info[0].expired_log_event_end_index == 1
 
 
@@ -595,7 +609,7 @@ def test_emf(aws: AwsMock) -> None:
     body = aws.bodies("PutLogEvents")[0]
     assert body["logGroupName"] == "app/main" and body["logStreamName"] == "s1"
     assert body["logEvents"][0]["timestamp"] == int(when.timestamp() * 1000)
-    aws.reply("PutLogEvents", {"rejectedLogEventsInfo": {"tooOldLogEventEndIndex": 0}})
+    aws.reply("PutLogEvents", {"rejectedLogEventsInfo": {"tooOldLogEventEndIndex": 1}})
     with client(aws) as c, pytest.raises(sdk.ValidationError, match="rejected"):
         c.emf("m", 1, group="g", stream="st")
     with client(aws, log_group=None) as c, pytest.raises(sdk.ConfigError):

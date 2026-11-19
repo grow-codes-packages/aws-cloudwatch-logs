@@ -75,7 +75,7 @@ export interface RejectedLogEventsInfo {
   batch: number;
   /** Events `0..tooOldLogEventEndIndex` (exclusive) were older than 14 days or the retention. */
   tooOldLogEventEndIndex?: number;
-  /** Events from this index on were more than 2 hours in the future. */
+  /** Events from this index on (inclusive) were more than 2 hours in the future. */
   tooNewLogEventStartIndex?: number;
   /** Events `0..expiredLogEventEndIndex` (exclusive) were older than the retention period. */
   expiredLogEventEndIndex?: number;

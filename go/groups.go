@@ -144,8 +144,9 @@ func msTime(ms *int64) time.Time {
 
 // EnsureLogGroupOptions configure EnsureLogGroup.
 type EnsureLogGroupOptions struct {
-	// RetentionDays sets the retention (one of RetentionDays; 0 = leave as is).
-	RetentionDays int
+	// RetentionDays sets the retention in days (one of RetentionDays): nil
+	// leaves it unchanged, 0 removes it (events never expire). Use Days(n).
+	RetentionDays *int
 	// KMSKeyID encrypts a new group. An existing group with a different key
 	// gives a CONFLICT error (keys are never re-associated silently).
 	KMSKeyID string
@@ -162,15 +163,18 @@ type EnsureLogGroupResult struct {
 }
 
 // EnsureLogGroup creates the log group when missing. On an existing group it
-// adds the requested tags (never removes any), re-applies the retention and
-// checks the KMS key (CONFLICT when it differs).
+// adds the requested tags (never removes any), re-applies the retention (when
+// opts.RetentionDays is set; 0 removes it) and checks the KMS key (CONFLICT
+// when it differs).
 func (c *Client) EnsureLogGroup(ctx context.Context, name string, opts EnsureLogGroupOptions) (EnsureLogGroupResult, error) {
 	op := "ensureLogGroup " + name
 	if err := validateGroupName(op, name); err != nil {
 		return EnsureLogGroupResult{}, err
 	}
-	if err := validateRetention(op, opts.RetentionDays); err != nil {
-		return EnsureLogGroupResult{}, err
+	if opts.RetentionDays != nil {
+		if err := validateRetention(op, *opts.RetentionDays); err != nil {
+			return EnsureLogGroupResult{}, err
+		}
 	}
 	ctx, cancel, err := c.begin(ctx, op)
 	if err != nil {
@@ -207,9 +211,8 @@ func (c *Client) EnsureLogGroup(ctx context.Context, name string, opts EnsureLog
 			}
 		}
 	}
-	if opts.RetentionDays > 0 {
-		days := small32(opts.RetentionDays)
-		if _, err := c.api.PutRetentionPolicy(ctx, &cwl.PutRetentionPolicyInput{LogGroupName: &name, RetentionInDays: &days}); err != nil {
+	if opts.RetentionDays != nil {
+		if err := c.applyRetention(ctx, name, *opts.RetentionDays); err != nil {
 			return res, c.mapError(op, err)
 		}
 	}
@@ -323,14 +326,23 @@ func (c *Client) PutRetentionPolicy(ctx context.Context, group string, days int)
 		return err
 	}
 	defer cancel()
-	if days == 0 {
-		_, err = c.api.DeleteRetentionPolicy(ctx, &cwl.DeleteRetentionPolicyInput{LogGroupName: &group})
-	} else {
-		d := small32(days)
-		_, err = c.api.PutRetentionPolicy(ctx, &cwl.PutRetentionPolicyInput{LogGroupName: &group, RetentionInDays: &d})
-	}
-	return c.mapError(op, err)
+	return c.mapError(op, c.applyRetention(ctx, group, days))
 }
+
+// applyRetention sets the retention of a group; days == 0 removes it.
+func (c *Client) applyRetention(ctx context.Context, group string, days int) error {
+	if days == 0 {
+		_, err := c.api.DeleteRetentionPolicy(ctx, &cwl.DeleteRetentionPolicyInput{LogGroupName: &group})
+		return err
+	}
+	d := small32(days)
+	_, err := c.api.PutRetentionPolicy(ctx, &cwl.PutRetentionPolicyInput{LogGroupName: &group, RetentionInDays: &d})
+	return err
+}
+
+// Days returns a pointer to n for EnsureLogGroupOptions.RetentionDays
+// (Days(0) removes the retention).
+func Days(n int) *int { return &n }
 
 // DeleteOptions configure DeleteLogGroup and DeleteLogStream.
 type DeleteOptions struct {

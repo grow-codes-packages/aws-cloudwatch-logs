@@ -234,9 +234,10 @@ func toLiveTailEvents(u types.LiveTailSessionUpdate) []LiveTailEvent {
 	return out
 }
 
-// LogGroupARN returns arn:<partition>:logs:<region>:<account>:log-group:<name>
-// for a group name (the account comes from Config.AccountID or STS); an ARN is
-// returned without ":*".
+// LogGroupARN returns the ARN of a log group (without ":*"). For a name it is
+// built from the region and Config.AccountID when the account is configured,
+// otherwise the group is looked up with DescribeLogGroups (NOT_FOUND when it
+// does not exist); an ARN is returned without ":*".
 func (c *Client) LogGroupARN(ctx context.Context, group string) (string, error) {
 	ctx, cancel, err := c.begin(ctx, "logGroupArn")
 	if err != nil {
@@ -246,8 +247,7 @@ func (c *Client) LogGroupARN(ctx context.Context, group string) (string, error) 
 	return c.groupARN(ctx, "logGroupArn", group)
 }
 
-// groupARN builds arn:<partition>:logs:<region>:<account>:log-group:<name>
-// for a group name; ARNs are returned without ":*".
+// groupARN returns the ARN of a group name or ARN (see LogGroupARN).
 func (c *Client) groupARN(ctx context.Context, op, group string) (string, error) {
 	if strings.HasPrefix(group, "arn:") {
 		return trimStarARN(group), nil
@@ -255,14 +255,17 @@ func (c *Client) groupARN(ctx context.Context, op, group string) (string, error)
 	if err := validateGroupName(op, group); err != nil {
 		return "", err
 	}
+	if c.cfg.AccountID == "" {
+		g, err := c.findGroup(ctx, op, group)
+		if err != nil {
+			return "", err
+		}
+		return g.ARN, nil
+	}
 	if c.region == "" {
 		return "", ConfigError("region is required to build log group ARNs")
 	}
-	account, err := c.account(ctx)
-	if err != nil {
-		return "", err
-	}
-	return "arn:" + partitionOf(c.region) + ":logs:" + c.region + ":" + account + ":log-group:" + group, nil
+	return "arn:" + partitionOf(c.region) + ":logs:" + c.region + ":" + c.cfg.AccountID + ":log-group:" + group, nil
 }
 
 // partitionOf returns the AWS partition of a region.

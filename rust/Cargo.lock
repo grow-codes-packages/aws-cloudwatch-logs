@@ -825,7 +825,6 @@ dependencies = [
  "aws-config",
  "aws-credential-types",
  "aws-sdk-cloudwatchlogs",
- "aws-sdk-sts",
  "aws-smithy-eventstream",
  "aws-smithy-runtime-api",
  "aws-smithy-types",

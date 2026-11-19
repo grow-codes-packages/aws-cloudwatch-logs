@@ -83,5 +83,5 @@ test("serverVersion is UNSUPPORTED and close is idempotent", async () => {
     await client.close();
     await client.close();
   }
-  await assert.rejects(client.ping(), { code: "CONFIG" });
+  await assert.rejects(client.ping(), { code: "CANCELLED" });
 });

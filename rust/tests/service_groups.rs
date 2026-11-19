@@ -82,6 +82,26 @@ async fn ensure_log_group_create_and_existing() {
         bodies(&server, "TagResource").await[0],
         json!({"resourceArn": "arn:aws:logs:us-east-1:1:log-group:app/web", "tags": {"a": "b"}})
     );
+    // retention: unset leaves it unchanged, 0 removes it (never expire)
+    on(
+        &server,
+        "DeleteRetentionPolicy",
+        json_response(200, json!({})),
+    )
+    .await;
+    assert!(bodies(&server, "PutRetentionPolicy").await.is_empty());
+    assert!(bodies(&server, "DeleteRetentionPolicy").await.is_empty());
+    c.ensure_log_group(
+        "app/web",
+        EnsureLogGroupOptions::default().retention_days(0),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        bodies(&server, "DeleteRetentionPolicy").await,
+        vec![json!({"logGroupName": "app/web"})]
+    );
+    assert!(bodies(&server, "PutRetentionPolicy").await.is_empty());
     let err = c
         .ensure_log_group("app/web", EnsureLogGroupOptions::default().kms_key_id("k2"))
         .await

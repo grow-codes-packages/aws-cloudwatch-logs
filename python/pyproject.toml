@@ -27,7 +27,6 @@ classifiers = [
 ]
 dependencies = [
   "boto3>=1.40,<2",
-  "aioboto3>=15.5,<16",
   "httpx>=0.27,<1",
   "opentelemetry-api>=1.27,<2",
   "opentelemetry-sdk>=1.27,<2",
@@ -35,10 +34,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Async client (AsyncCloudWatchLogsClient) on aioboto3. aioboto3 (via aiobotocore) pins boto3 /
+# botocore to a narrow window, so it is optional (sync-only users keep an unpinned boto3) and the
+# window is spelled out here so pip resolves it directly instead of backtracking through every
+# boto3 release. Move both lines together when aioboto3 moves.
+async = [
+  "aioboto3>=15.5,<16",
+  "boto3>=1.40.46,<1.40.62",
+]
 structlog = ["structlog>=24.1"]
 # Every optional runtime extra (used by `make license`).
 all = [
-  "grow-aws-cloudwatch-logs[structlog]",
+  "grow-aws-cloudwatch-logs[async,structlog]",
 ]
 dev = [
   "build>=1.2",

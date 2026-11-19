@@ -311,4 +311,23 @@ test("logging category: logClient → search (desc/asc) / waitForLog / listStrea
   handle.stop();
   assert.equal(tailed[0]?.body, `hello ${run}`);
   await logs.close();
+
+  // exporter(): the LogExporter behind logClient, used directly
+  const exporter = client.exporter({ group, stream: "exported" });
+  const exported = await exporter.export(
+    [
+      {
+        timestamp: new Date(),
+        severity: Severity.Info,
+        severityText: "INFO",
+        body: `exported ${run}`,
+        attributes: {},
+        resource: {},
+      },
+    ],
+    { gzip: false },
+  );
+  assert.equal(exported.accepted, 1);
+  const back = await query.waitForLog(`exported ${run}`, { timeoutMs: 20_000, intervalMs: 250 });
+  assert.equal(back.body, `exported ${run}`);
 });

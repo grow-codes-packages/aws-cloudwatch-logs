@@ -589,7 +589,8 @@ class ClientTest {
 
   @Test
   void putLogEventsReportsRejected() {
-    mock.fixture("putLogEvents.rejected-too-old-too-new");
+    // real AWS: [old, ok, new] -> tooOldLogEventEndIndex 1 (exclusive), tooNewLogEventStartIndex 2
+    mock.fixture("putLogEvents.rejected-aws");
     Instant t = Instant.now();
     PutLogEventsResult r =
         client.putLogEvents(
@@ -601,7 +602,7 @@ class ClientTest {
                 LogEvent.of(t.plusSeconds(1000), "new")));
     assertThat(r.accepted()).isEqualTo(1);
     assertThat(r.rejected()).isEqualTo(2);
-    assertThat(r.rejectedInfo().get(0).tooOldLogEventEndIndex()).hasValue(0);
+    assertThat(r.rejectedInfo().get(0).tooOldLogEventEndIndex()).hasValue(1);
     assertThat(r.rejectedInfo().get(0).tooNewLogEventStartIndex()).hasValue(2);
     assertThat(r.rejectedInfo().get(0).expiredLogEventEndIndex()).isEmpty();
     mock.on("PutLogEvents", 200, "{\"rejectedLogEventsInfo\":{\"expiredLogEventEndIndex\":1}}");
@@ -610,7 +611,19 @@ class ClientTest {
                 .putLogEvents(
                     G, "s3", List.of(LogEvent.of(t, "a"), LogEvent.of(t, "b"), LogEvent.of(t, "c")))
                 .rejected())
-        .isEqualTo(2);
+        .isEqualTo(1);
+    // Moto 5.2.4 returns the end index one lower: read with the AWS rule
+    mock.fixture("putLogEvents.rejected-too-old-too-new");
+    PutLogEventsResult moto =
+        client.putLogEvents(
+            G,
+            "s3",
+            List.of(
+                LogEvent.of(t.minusSeconds(1000), "old"),
+                LogEvent.of(t, "ok"),
+                LogEvent.of(t.plusSeconds(1000), "new")));
+    assertThat(moto.accepted()).isEqualTo(2);
+    assertThat(moto.rejected()).isEqualTo(1);
   }
 
   @Test
@@ -717,7 +730,7 @@ class ClientTest {
     JsonNode message = AwsMock.JSON.readTree(sent.get("logEvents").get(0).get("message").asText());
     assertThat(message.get("_aws").get("CloudWatchMetrics").get(0).get("Namespace").asText())
         .isEqualTo("GrowSdk");
-    mock.on("PutLogEvents", 200, "{\"rejectedLogEventsInfo\":{\"tooOldLogEventEndIndex\":0}}");
+    mock.on("PutLogEvents", 200, "{\"rejectedLogEventsInfo\":{\"tooOldLogEventEndIndex\":1}}");
     assertThatThrownBy(() -> client.emf("m", 1, null, null))
         .isInstanceOf(ValidationException.class)
         .hasMessageContaining("rejected");

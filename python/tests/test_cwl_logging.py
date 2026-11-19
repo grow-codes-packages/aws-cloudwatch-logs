@@ -66,7 +66,7 @@ def test_log_client_sends_normalized_json(aws: AwsMock) -> None:
 
 
 def test_exporter_rejections_and_oversize(aws: AwsMock) -> None:
-    aws.reply("PutLogEvents", {"rejectedLogEventsInfo": {"tooOldLogEventEndIndex": 0}})
+    aws.reply("PutLogEvents", {"rejectedLogEventsInfo": {"tooOldLogEventEndIndex": 1}})
     with sync_client(aws, max_event_bytes=200, oversize_policy="drop") as c:
         exp = c.exporter(group="g/x", stream="st", create_group=True)
         records = [

@@ -104,11 +104,11 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("bootstrap functions", func(t *testing.T) {
-		res := must(c.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: 7, Tags: map[string]string{"team": "sdk"}}))
+		res := must(c.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: cloudwatchlogs.Days(7), Tags: map[string]string{"team": "sdk"}}))
 		if !res.Created || !strings.HasSuffix(res.ARN, ":log-group:"+group) {
 			t.Fatalf("create %+v", res)
 		}
-		res = must(c.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: 14, Tags: map[string]string{"env": "it"}}))
+		res = must(c.EnsureLogGroup(ctx, group, cloudwatchlogs.EnsureLogGroupOptions{RetentionDays: cloudwatchlogs.Days(14), Tags: map[string]string{"env": "it"}}))
 		if res.Created {
 			t.Fatal("second ensure must not create")
 		}
@@ -240,9 +240,9 @@ func TestIntegration(t *testing.T) {
 		if !strings.Contains(doc, `"CloudWatchMetrics"`) {
 			t.Fatal(doc)
 		}
-		emfRes := must(c.EMF(ctx, "latency", 42, map[string]string{"service": "api"}, cloudwatchlogs.EMFOptions{Group: group, Stream: "emf", Properties: map[string]any{"marker": marker}}))
-		if emfRes.Accepted != 1 {
-			t.Fatalf("emf %+v", emfRes)
+		emfDoc := must(c.EMF(ctx, "latency", 42, map[string]string{"service": "api"}, cloudwatchlogs.EMFOptions{Group: group, Stream: "emf", Properties: map[string]any{"marker": marker}}))
+		if !strings.Contains(emfDoc, marker) {
+			t.Fatalf("emf %q", emfDoc)
 		}
 		emf := collect(t, c.GetLogEvents(ctx, group, "emf", cloudwatchlogs.GetLogEventsOptions{StartFromHead: true}))
 		var parsed map[string]any

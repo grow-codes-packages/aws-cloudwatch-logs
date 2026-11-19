@@ -434,7 +434,7 @@ export class CloudWatchLogsClient {
     signal: AbortSignal | undefined,
     options: { probe?: boolean; timeoutMs?: number } = {},
   ): Promise<T> {
-    if (this.#closed) throw new ConfigError(`${operation}: the client is closed`);
+    if (this.#closed) throw new CancelledError(`${operation}: the client is closed`);
     throwIfAborted(signal, operation);
     const controller = new AbortController();
     let reason: "cancel" | "timeout" | undefined;
@@ -961,7 +961,7 @@ export class CloudWatchLogsClient {
       let rejected = 0;
       if (info !== undefined) {
         const r: RejectedLogEventsInfo = { batch: index };
-        let oldEnd = -1;
+        let oldEnd = 0;
         let newStart = batch.length;
         if (typeof info.tooOldLogEventEndIndex === "number") {
           r.tooOldLogEventEndIndex = info.tooOldLogEventEndIndex;
@@ -975,8 +975,9 @@ export class CloudWatchLogsClient {
           r.tooNewLogEventStartIndex = info.tooNewLogEventStartIndex;
           newStart = Math.min(newStart, info.tooNewLogEventStartIndex);
         }
-        // AWS documents the "end index" fields as inclusive.
-        const old = Math.min(batch.length, oldEnd + 1);
+        // AWS returns the "end index" fields as exclusive (events 0..end-1 were rejected) and
+        // tooNewLogEventStartIndex as inclusive; Moto 5.2.4 returns end indexes one lower.
+        const old = Math.min(batch.length, oldEnd);
         const tooNew = Math.max(0, batch.length - Math.max(newStart, old));
         rejected = old + tooNew;
         result.rejectedInfo.push(r);
@@ -1552,19 +1553,37 @@ export class CloudWatchLogsClient {
    * LogRecord JSON. `close()` of this client flushes it too.
    */
   logClient(options: CloudWatchLogClientOptions = {}): BatchingLogClient {
-    const group = this.#group(options.group, "logClient");
-    checkGroupName(group, "logClient");
-    const stream = options.stream ?? this.config.logStream;
-    checkStreamName(stream, "logClient");
-    const exporter = new CloudWatchLogsExporter(this, {
-      group,
-      stream,
-      createGroup: options.createGroup === true,
-    });
+    const exporter = this.#exporter(options, "logClient");
     const { group: _g, stream: _s, createGroup: _c, ...batchOptions } = options;
     const client = new BatchingLogClient(exporter, batchOptions);
     this.#logClients.add(client);
     return client;
+  }
+
+  /**
+   * A {@link CloudWatchLogsExporter} (the `LogExporter` behind {@link logClient}) writing to
+   * `group`/`stream` (defaults `config.logGroup` / `config.logStream`). `CONFIG` when no group is
+   * set, `VALIDATION` for invalid names.
+   */
+  exporter(
+    options: { group?: string; stream?: string; createGroup?: boolean } = {},
+  ): CloudWatchLogsExporter {
+    return this.#exporter(options, "exporter");
+  }
+
+  #exporter(
+    options: { group?: string; stream?: string; createGroup?: boolean },
+    op: string,
+  ): CloudWatchLogsExporter {
+    const group = this.#group(options.group, op);
+    checkGroupName(group, op);
+    const stream = options.stream ?? this.config.logStream;
+    checkStreamName(stream, op);
+    return new CloudWatchLogsExporter(this, {
+      group,
+      stream,
+      createGroup: options.createGroup === true,
+    });
   }
 
   /** A {@link CloudWatchLogsQueryClient} over `group` (default `config.logGroup`). */

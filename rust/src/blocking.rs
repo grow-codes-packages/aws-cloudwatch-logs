@@ -162,7 +162,7 @@ impl CloudWatchLogsClient {
         value: f64,
         dimensions: &BTreeMap<String, String>,
         opts: EmfOptions,
-    ) -> Result<PutLogEventsResult> {
+    ) -> Result<String> {
         self.block_on(self.inner.emf(metric, value, dimensions, opts))
     }
 

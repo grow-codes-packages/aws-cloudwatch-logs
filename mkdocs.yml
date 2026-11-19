@@ -117,7 +117,15 @@ nav:
   - Quickstart: quickstart.md
   - Configuration: configuration.md
   - Client: client.md
-  - Functions: functions.md
+  - Functions:
+      - functions.md
+      - Client setup: functions/client-setup.md
+      - Bootstrap: functions/bootstrap.md
+      - Ingest: functions/ingest.md
+      - Query: functions/query.md
+      - Logs Insights: functions/insights.md
+      - Live tail: functions/live-tail.md
+      - Logging (LogClient): functions/logging.md
   - Logging: logging.md
   - Error handling: errors.md
   - Hooks and logger: hooks.md

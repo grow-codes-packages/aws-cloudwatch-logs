@@ -16,7 +16,7 @@ func TestEnsureLogGroup(t *testing.T) {
 			on("DescribeLogGroups", jsonReply(strings.Replace(groupJSON, "%s", "", 1))).
 			on("PutRetentionPolicy", replay(t, "putRetentionPolicy.ok"))
 		c := newMockClient(t, m, nil)
-		res, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: 7, Tags: map[string]string{"team": "sdk"}, KMSKeyID: "key-1"})
+		res, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: Days(7), Tags: map[string]string{"team": "sdk"}, KMSKeyID: "key-1"})
 		if err != nil || !res.Created || res.ARN != "arn:aws:logs:us-east-1:123456789012:log-group:app/web" {
 			t.Fatalf("%+v %v", res, err)
 		}
@@ -35,7 +35,7 @@ func TestEnsureLogGroup(t *testing.T) {
 			on("TagResource", jsonReply(`{}`)).
 			on("PutRetentionPolicy", replay(t, "putRetentionPolicy.ok"))
 		c := newMockClient(t, m, nil)
-		res, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: 14, Tags: map[string]string{"a": "b"}, KMSKeyID: "key-1"})
+		res, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: Days(14), Tags: map[string]string{"a": "b"}, KMSKeyID: "key-1"})
 		if err != nil || res.Created {
 			t.Fatalf("%+v %v", res, err)
 		}
@@ -45,6 +45,26 @@ func TestEnsureLogGroup(t *testing.T) {
 		_, err = c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{KMSKeyID: "other"})
 		wantCode(t, err, ErrorCodeConflict)
 	})
+	t.Run("retention unset leaves it, 0 removes it", func(t *testing.T) {
+		m := newAWSMock(t).
+			on("CreateLogGroup", awsError(400, "ResourceAlreadyExistsException", "exists")).
+			on("DescribeLogGroups", jsonReply(strings.Replace(groupJSON, "%s", "", 1))).
+			on("PutRetentionPolicy", replay(t, "putRetentionPolicy.ok")).
+			on("DeleteRetentionPolicy", replay(t, "putRetentionPolicy.delete"))
+		c := newMockClient(t, m, nil)
+		if _, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		if len(m.callsOf("PutRetentionPolicy"))+len(m.callsOf("DeleteRetentionPolicy")) != 0 {
+			t.Fatal("retention changed although unset")
+		}
+		if _, err := c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: Days(0)}); err != nil {
+			t.Fatal(err)
+		}
+		if got := m.callsOf("DeleteRetentionPolicy"); len(got) != 1 || got[0].Body["logGroupName"] != "app/web" || len(m.callsOf("PutRetentionPolicy")) != 0 {
+			t.Fatalf("delete calls %v", got)
+		}
+	})
 	t.Run("errors", func(t *testing.T) {
 		m := newAWSMock(t).on("CreateLogGroup", replay(t, "ensureLogGroup.access-denied"))
 		c := newMockClient(t, m, nil)
@@ -52,7 +72,7 @@ func TestEnsureLogGroup(t *testing.T) {
 		wantCode(t, err, ErrorCodePermissionDenied)
 		_, err = c.EnsureLogGroup(t.Context(), "bad name!", EnsureLogGroupOptions{})
 		wantCode(t, err, ErrorCodeValidation)
-		_, err = c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: 8})
+		_, err = c.EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: Days(8)})
 		wantCode(t, err, ErrorCodeValidation)
 		m2 := newAWSMock(t).on("CreateLogGroup", replay(t, "ensureLogGroup.create")).on("DescribeLogGroups", replay(t, "describeLogGroups.empty"))
 		_, err = newMockClient(t, m2, nil).EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{})
@@ -67,7 +87,7 @@ func TestEnsureLogGroup(t *testing.T) {
 			on("CreateLogGroup", replay(t, "ensureLogGroup.create")).
 			on("DescribeLogGroups", jsonReply(strings.Replace(groupJSON, "%s", "", 1))).
 			on("PutRetentionPolicy", replay(t, "putRetentionPolicy.not-found"))
-		_, err = newMockClient(t, m4, nil).EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: 1})
+		_, err = newMockClient(t, m4, nil).EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{RetentionDays: Days(1)})
 		wantCode(t, err, ErrorCodeNotFound)
 		m5 := newAWSMock(t).on("CreateLogGroup", replay(t, "ensureLogGroup.create")).on("DescribeLogGroups", awsError(400, "ThrottlingException", "x"))
 		_, err = newMockClient(t, m5, nil).EnsureLogGroup(t.Context(), "app/web", EnsureLogGroupOptions{})

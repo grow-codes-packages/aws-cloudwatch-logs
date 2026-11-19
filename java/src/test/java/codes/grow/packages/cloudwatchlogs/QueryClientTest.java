@@ -400,7 +400,7 @@ class QueryClientTest {
       assertThat(r.rejected()).isEqualTo(1);
       assertThat(r.error()).isPresent();
     }
-    mock.on("PutLogEvents", 200, "{\"rejectedLogEventsInfo\":{\"tooOldLogEventEndIndex\":0}}");
+    mock.on("PutLogEvents", 200, "{\"rejectedLogEventsInfo\":{\"tooOldLogEventEndIndex\":1}}");
     ExportResult rejected =
         exp.export(
                 List.of(LogRecord.builder().timestamp(Instant.now()).body("x").build()),

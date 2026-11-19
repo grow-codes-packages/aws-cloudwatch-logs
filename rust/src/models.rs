@@ -197,7 +197,8 @@ impl LogStream {
 /// Options of [`ensure_log_group`](crate::CloudWatchLogsClient::ensure_log_group).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnsureLogGroupOptions {
-    /// Retention in days (one of [`RETENTION_DAYS`]); `None` = leave as is.
+    /// Retention in days (one of [`RETENTION_DAYS`]); `None` = leave as is, `Some(0)` = never
+    /// expire (removes the retention policy).
     pub retention_days: Option<u32>,
     /// KMS key for a new group. An existing group with a different key gives `CONFLICT` (keys
     /// are never re-associated silently).
@@ -330,9 +331,10 @@ pub struct PutLogEventsOptions {
 }
 
 /// `rejectedLogEventsInfo` of one `PutLogEvents` call. Indexes refer to the timestamp-sorted
-/// events of that batch. As documented by AWS, `too_old_log_event_end_index` and
+/// events of that batch. As returned by AWS, `too_old_log_event_end_index` and
 /// `expired_log_event_end_index` are exclusive (events `[0, index)` rejected) and
-/// `too_new_log_event_start_index` is inclusive (events `[index, n)` rejected).
+/// `too_new_log_event_start_index` is inclusive (events `[index, n)` rejected). Moto 5.2.4
+/// returns end indexes one lower (see `docs/compatibility.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RejectedInfo {
     /// 0-based index of the `PutLogEvents` call within `put_log_events`.
@@ -767,7 +769,30 @@ mod tests {
             too_new_log_event_start_index: Some(2),
             expired_log_event_end_index: None,
         };
+        // real AWS (2026-11-19): [old, ok, new]
         assert_eq!(r.count(3), 2);
+        // [old, old, ok] and [expired, ok]
+        let r = RejectedInfo {
+            batch: 0,
+            too_old_log_event_end_index: Some(2),
+            too_new_log_event_start_index: None,
+            expired_log_event_end_index: None,
+        };
+        assert_eq!(r.count(3), 2);
+        let r = RejectedInfo {
+            batch: 0,
+            too_old_log_event_end_index: None,
+            too_new_log_event_start_index: None,
+            expired_log_event_end_index: Some(1),
+        };
+        assert_eq!(r.count(2), 1);
+        let none = RejectedInfo {
+            batch: 0,
+            too_old_log_event_end_index: None,
+            too_new_log_event_start_index: None,
+            expired_log_event_end_index: None,
+        };
+        assert_eq!(none.count(4), 0);
         let opts = LiveTailOptions::default()
             .groups(["g"])
             .pattern("p")

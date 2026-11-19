@@ -116,10 +116,12 @@ func BuildEMF(metric string, value float64, dimensions map[string]string, opts E
 	return string(out), nil
 }
 
-// EMF builds an Embedded Metric Format document (see BuildEMF) and writes it
-// with PutLogEvents to opts.Group/opts.Stream (default: the client's
-// LogGroup and LogStream; a missing stream is created).
-func (c *Client) EMF(ctx context.Context, metric string, value float64, dimensions map[string]string, opts EMFOptions) (PutLogEventsResult, error) {
+// EMF builds an Embedded Metric Format document (see BuildEMF), writes it as
+// one event with PutLogEvents to opts.Group/opts.Stream (default: the client's
+// LogGroup and LogStream; a missing stream is created) and returns the
+// document sent. An oversize document or an event the service rejects gives a
+// VALIDATION error.
+func (c *Client) EMF(ctx context.Context, metric string, value float64, dimensions map[string]string, opts EMFOptions) (string, error) {
 	group, stream := opts.Group, opts.Stream
 	if group == "" {
 		group = c.cfg.LogGroup
@@ -128,14 +130,21 @@ func (c *Client) EMF(ctx context.Context, metric string, value float64, dimensio
 		stream = c.cfg.LogStream
 	}
 	if group == "" {
-		return PutLogEventsResult{}, ConfigError("emf: logGroup is not set (GROW_AWS_CLOUDWATCH_LOGS_LOG_GROUP or CLOUDWATCH_LOG_GROUP)")
+		return "", ConfigError("emf: logGroup is not set (GROW_AWS_CLOUDWATCH_LOGS_LOG_GROUP or CLOUDWATCH_LOG_GROUP)")
 	}
 	if opts.Timestamp.IsZero() {
 		opts.Timestamp = time.Now()
 	}
 	doc, err := BuildEMF(metric, value, dimensions, opts)
 	if err != nil {
-		return PutLogEventsResult{}, err
+		return "", err
 	}
-	return c.PutLogEvents(ctx, group, stream, []LogEvent{{Timestamp: opts.Timestamp, Message: doc}}, PutLogEventsOptions{})
+	res, err := c.PutLogEvents(ctx, group, stream, []LogEvent{{Timestamp: opts.Timestamp, Message: doc}}, PutLogEventsOptions{OversizePolicy: OversizeError})
+	if err != nil {
+		return "", err
+	}
+	if res.Rejected > 0 {
+		return "", ValidationError("emf", "the service rejected the event")
+	}
+	return doc, nil
 }

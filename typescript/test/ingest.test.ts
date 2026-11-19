@@ -199,7 +199,27 @@ describe("putLogEvents", () => {
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
   });
 
-  it("reports rejected events from rejectedLogEventsInfo (recorded fixture)", async () => {
+  it("reports rejected events with the AWS exclusive end index (AWS fixture)", async () => {
+    const fake = await startFakeCloudWatch(() => fixtureResponse("putLogEvents.rejected-aws"));
+    const client = testClient(fake);
+    cleanups.push(
+      () => fake.close(),
+      () => client.close(),
+    );
+    const now = Date.now();
+    const res = await client.putLogEvents("g", "s", [
+      { timestamp: now - 20 * 3_600_000, message: "old" },
+      { timestamp: now, message: "ok" },
+      { timestamp: now + 3 * 3_600_000, message: "new" },
+    ]);
+    expect(res).toMatchObject({
+      accepted: 1,
+      rejected: 2,
+      rejectedInfo: [{ batch: 0, tooOldLogEventEndIndex: 1, tooNewLogEventStartIndex: 2 }],
+    });
+  });
+
+  it("reads Moto's one-lower end index with the AWS rule (recorded Moto fixture)", async () => {
     const fake = await startFakeCloudWatch(() =>
       fixtureResponse("putLogEvents.rejected-too-old-too-new"),
     );
@@ -215,8 +235,8 @@ describe("putLogEvents", () => {
       { timestamp: now + 3 * 3_600_000, message: "new" },
     ]);
     expect(res).toMatchObject({
-      accepted: 1,
-      rejected: 2,
+      accepted: 2,
+      rejected: 1,
       rejectedInfo: [{ batch: 0, tooOldLogEventEndIndex: 0, tooNewLogEventStartIndex: 2 }],
     });
   });
@@ -230,7 +250,7 @@ describe("putLogEvents", () => {
       { timestamp: 2, message: "b" },
       { timestamp: 3, message: "c" },
     ]);
-    expect(res).toMatchObject({ accepted: 1, rejected: 2 });
+    expect(res).toMatchObject({ accepted: 2, rejected: 1 });
     expect(res.rejectedInfo[0]?.expiredLogEventEndIndex).toBe(1);
   });
 

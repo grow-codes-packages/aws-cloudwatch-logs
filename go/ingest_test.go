@@ -99,6 +99,10 @@ func TestRejectedCount(t *testing.T) {
 		{RejectedInfo{TooOldLogEventEndIndex: -1, TooNewLogEventStartIndex: -1, ExpiredLogEventEndIndex: -1}, 5, 0},
 		{RejectedInfo{TooOldLogEventEndIndex: 2, TooNewLogEventStartIndex: -1, ExpiredLogEventEndIndex: -1}, 5, 2},
 		{RejectedInfo{TooOldLogEventEndIndex: -1, TooNewLogEventStartIndex: 3, ExpiredLogEventEndIndex: 1}, 5, 3},
+		// real AWS (2026-11-19): [old, ok, new], [old, old, ok], [expired, ok]
+		{RejectedInfo{TooOldLogEventEndIndex: 1, TooNewLogEventStartIndex: 2, ExpiredLogEventEndIndex: -1}, 3, 2},
+		{RejectedInfo{TooOldLogEventEndIndex: 2, TooNewLogEventStartIndex: -1, ExpiredLogEventEndIndex: -1}, 3, 2},
+		{RejectedInfo{TooOldLogEventEndIndex: -1, TooNewLogEventStartIndex: -1, ExpiredLogEventEndIndex: 1}, 2, 1},
 		{RejectedInfo{TooOldLogEventEndIndex: 9, TooNewLogEventStartIndex: 0, ExpiredLogEventEndIndex: -1}, 5, 5},
 	}
 	for i, tc := range cases {
@@ -123,10 +127,21 @@ func TestPutLogEvents(t *testing.T) {
 			t.Fatalf("body %v", body)
 		}
 	})
-	t.Run("rejected", func(t *testing.T) {
+	t.Run("rejected too old and too new (AWS: exclusive end index)", func(t *testing.T) {
+		// Real AWS: [old, ok, new] → tooOldLogEventEndIndex 1 (exclusive),
+		// tooNewLogEventStartIndex 2; only index 1 is accepted.
+		m := newAWSMock(t).on("PutLogEvents", replay(t, "putLogEvents.rejected-aws"))
+		res, err := newMockClient(t, m, nil).PutLogEvents(t.Context(), "app/web", "s1", []LogEvent{{now, "a"}, {now, "b"}, {now, "c"}}, PutLogEventsOptions{})
+		if err != nil || res.Rejected != 2 || res.Accepted != 1 || len(res.RejectedInfo) != 1 || res.RejectedInfo[0].TooOldLogEventEndIndex != 1 || res.RejectedInfo[0].TooNewLogEventStartIndex != 2 || res.RejectedInfo[0].ExpiredLogEventEndIndex != -1 || res.RejectedInfo[0].Batch != 0 {
+			t.Fatalf("%+v %v", res, err)
+		}
+	})
+	t.Run("rejected (Moto off-by-one end index)", func(t *testing.T) {
+		// Moto 5.2.4 answers tooOldLogEventEndIndex 0 for one old event at index 0;
+		// read with the AWS rule that rejects nothing at the head.
 		m := newAWSMock(t).on("PutLogEvents", replay(t, "putLogEvents.rejected-too-old-too-new"))
 		res, err := newMockClient(t, m, nil).PutLogEvents(t.Context(), "app/web", "s1", []LogEvent{{now, "a"}, {now, "b"}, {now, "c"}}, PutLogEventsOptions{})
-		if err != nil || res.Rejected != 1 || res.Accepted != 2 || len(res.RejectedInfo) != 1 || res.RejectedInfo[0].TooNewLogEventStartIndex != 2 || res.RejectedInfo[0].Batch != 0 {
+		if err != nil || res.Rejected != 1 || res.Accepted != 2 || res.RejectedInfo[0].TooOldLogEventEndIndex != 0 {
 			t.Fatalf("%+v %v", res, err)
 		}
 	})
@@ -233,14 +248,20 @@ func TestEMF(t *testing.T) {
 
 	m := newAWSMock(t).on("PutLogEvents", replay(t, "emf.put"))
 	c := newMockClient(t, m, nil)
-	res, err := c.EMF(t.Context(), "latency", 42, map[string]string{"service": "api"}, EMFOptions{})
-	if err != nil || res.Accepted != 1 {
-		t.Fatalf("%+v %v", res, err)
+	sent, err := c.EMF(t.Context(), "latency", 42, map[string]string{"service": "api"}, EMFOptions{})
+	if err != nil || !strings.Contains(sent, `"latency":42`) {
+		t.Fatalf("%q %v", sent, err)
 	}
 	body := m.callsOf("PutLogEvents")[0].Body
-	if body["logGroupName"] != "app/web" || body["logStreamName"] != "s1" {
+	if body["logGroupName"] != "app/web" || body["logStreamName"] != "s1" || body["logEvents"].([]any)[0].(map[string]any)["message"] != sent {
 		t.Fatalf("%v", body)
 	}
+	rej := newAWSMock(t).on("PutLogEvents", replay(t, "putLogEvents.rejected-aws"))
+	_, err = newMockClient(t, rej, nil).EMF(t.Context(), "m", 1, nil, EMFOptions{})
+	wantCode(t, err, ErrorCodeValidation)
+	fail := newAWSMock(t).on("PutLogEvents", awsError(400, "ServiceUnavailableException", "down"))
+	_, err = newMockClient(t, fail, nil).EMF(t.Context(), "m", 1, nil, EMFOptions{})
+	wantCode(t, err, ErrorCodeUnavailable)
 	_, err = c.EMF(t.Context(), "", 1, nil, EMFOptions{Group: "x", Stream: "y"})
 	wantCode(t, err, ErrorCodeValidation)
 	noGroup := newMockClient(t, m, func(cfg *Config) { cfg.LogGroup = "" })

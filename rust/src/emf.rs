@@ -6,8 +6,9 @@ use std::time::SystemTime;
 use serde_json::{json, Map, Value};
 
 use crate::client::CloudWatchLogsClient;
+use crate::config::OversizePolicy;
 use crate::core::{Error, Result};
-use crate::models::{to_ms, LogEvent, PutLogEventsOptions, PutLogEventsResult};
+use crate::models::{to_ms, LogEvent, PutLogEventsOptions};
 
 /// Metric namespace used when [`EmfOptions::namespace`] is not set.
 pub const DEFAULT_EMF_NAMESPACE: &str = "GrowSdk";
@@ -158,16 +159,18 @@ pub fn build_emf(
 }
 
 impl CloudWatchLogsClient {
-    /// Builds an Embedded Metric Format document (see [`build_emf`]) and writes it with
+    /// Builds an Embedded Metric Format document (see [`build_emf`]), writes it as one event with
     /// `PutLogEvents` to `opts.group` / `opts.stream` (default: the client's log group and log
-    /// stream; a missing stream is created). `CONFIG` when no log group is known.
+    /// stream; a missing stream is created) and returns the document sent. `CONFIG` when no log
+    /// group is known; `VALIDATION` when the document is oversize or the service rejects the
+    /// event.
     pub async fn emf(
         &self,
         metric: &str,
         value: f64,
         dimensions: &BTreeMap<String, String>,
         opts: EmfOptions,
-    ) -> Result<PutLogEventsResult> {
+    ) -> Result<String> {
         let group = self.group_or_default("emf", opts.group.as_deref())?;
         let stream = opts
             .stream
@@ -176,13 +179,21 @@ impl CloudWatchLogsClient {
         let mut opts = opts;
         let ts = *opts.timestamp.get_or_insert_with(SystemTime::now);
         let doc = build_emf(metric, value, dimensions, &opts)?;
-        self.put_log_events(
-            &group,
-            &stream,
-            vec![LogEvent::at(ts, doc)],
-            PutLogEventsOptions::default(),
-        )
-        .await
+        let res = self
+            .put_log_events(
+                &group,
+                &stream,
+                vec![LogEvent::at(ts, doc.clone())],
+                PutLogEventsOptions {
+                    oversize_policy: Some(OversizePolicy::Error),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        if res.rejected > 0 {
+            return Err(Error::validation("emf: the service rejected the event"));
+        }
+        Ok(doc)
     }
 }
 

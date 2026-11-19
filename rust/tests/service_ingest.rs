@@ -20,7 +20,7 @@ fn at(ms: u64, msg: &str) -> LogEvent {
 #[tokio::test]
 async fn put_sorted_and_rejections() {
     let server = MockServer::start().await;
-    on_fixture(&server, "putLogEvents.rejected-too-old-too-new").await;
+    on_fixture(&server, "putLogEvents.rejected-aws").await;
     let c = client(&server);
     let res = c
         .put_log_events(
@@ -31,9 +31,11 @@ async fn put_sorted_and_rejections() {
         )
         .await
         .unwrap();
-    // exclusive end index (same rule as Go/TS): tooOld 0 rejects nothing, tooNew 2 rejects one
-    assert_eq!((res.accepted, res.rejected, res.batches), (2, 1, 1));
-    assert_eq!(res.rejected_info[0].too_old_log_event_end_index, Some(0));
+    // real AWS: exclusive end index; tooOld 1 rejects index 0, tooNew 2 rejects index 2
+    assert_eq!((res.accepted, res.rejected, res.batches), (1, 2, 1));
+    assert_eq!(res.rejected_info[0].too_old_log_event_end_index, Some(1));
+    assert_eq!(res.rejected_info[0].too_new_log_event_start_index, Some(2));
+    assert_eq!(res.rejected_info[0].expired_log_event_end_index, None);
     let sent = &bodies(&server, "PutLogEvents").await[0];
     let msgs: Vec<&str> = sent["logEvents"]
         .as_array()
@@ -252,7 +254,7 @@ async fn emf_writes_a_document() {
     on_fixture(&server, "putLogEvents.ok").await;
     let c = group_client(&server, "metrics/app");
     let dims: BTreeMap<String, String> = [("service".to_owned(), "api".to_owned())].into();
-    let res = c
+    let returned = c
         .emf(
             "latency",
             42.0,
@@ -263,8 +265,8 @@ async fn emf_writes_a_document() {
         )
         .await
         .unwrap();
-    assert_eq!(res.accepted, 1);
     let sent = &bodies(&server, "PutLogEvents").await[0];
+    assert_eq!(sent["logEvents"][0]["message"], returned.as_str());
     assert_eq!(sent["logGroupName"], "metrics/app");
     assert_eq!(sent["logStreamName"], "s1");
     let doc: Value =
@@ -298,4 +300,31 @@ async fn emf_writes_a_document() {
         .await
         .unwrap_err();
     assert_eq!(err.code(), ErrorCode::Validation);
+    // the service rejected the event
+    let server = MockServer::start().await;
+    on_fixture(&server, "putLogEvents.rejected-aws").await;
+    let err = group_client(&server, "metrics/app")
+        .emf("m", 1.0, &BTreeMap::new(), EmfOptions::default())
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), ErrorCode::Validation);
+}
+
+#[tokio::test]
+async fn moto_rejected_end_index_is_one_lower() {
+    // Moto 5.2.4 answers tooOldLogEventEndIndex 0 for one old event at index 0; the AWS rule
+    // (exclusive) then counts only the too-new event.
+    let server = MockServer::start().await;
+    on_fixture(&server, "putLogEvents.rejected-too-old-too-new").await;
+    let res = client(&server)
+        .put_log_events(
+            "g",
+            "s",
+            vec![at(1, "too old"), at(2, "accepted"), at(3, "too new")],
+            PutLogEventsOptions::default(),
+        )
+        .await
+        .unwrap();
+    assert_eq!((res.accepted, res.rejected), (2, 1));
+    assert_eq!(res.rejected_info[0].too_old_log_event_end_index, Some(0));
 }

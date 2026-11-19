@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -164,7 +165,7 @@ func TestStartLiveTail(t *testing.T) {
 		}
 		select {
 		case <-s.Done():
-			t.Fatal("ended early")
+			t.Fatalf("ended early: %v", s.Err())
 		case <-time.After(50 * time.Millisecond):
 		}
 		s.Stop()
@@ -225,8 +226,23 @@ func TestStartLiveTail(t *testing.T) {
 		if _, err := noRegion.groupARN(t.Context(), "op", "g"); !errors.Is(err, ErrConfig) {
 			t.Fatal(err)
 		}
-		noAccount := newMockClient(t, newAWSMock(t).on("GetCallerIdentity", rawReply(500, "text/html", "x")), func(cfg *Config) { cfg.AccountID = "" })
-		_, err = noAccount.StartLiveTail(t.Context(), LiveTailOptions{}, func(LiveTailEvent) {})
+		// without an account id the ARN is looked up with DescribeLogGroups (no STS call)
+		lookup := newAWSMock(t).on("DescribeLogGroups", replay(t, "describeLogGroups.prefix"), replay(t, "describeLogGroups.prefix"), replay(t, "describeLogGroups.empty"))
+		noAccount := newMockClient(t, lookup, func(cfg *Config) { cfg.AccountID = "" })
+		arn, err := noAccount.LogGroupARN(t.Context(), "cwlv-0badc0de/app")
+		if err != nil || arn != "arn:aws:logs:us-east-1:123456789012:log-group:cwlv-0badc0de/app" {
+			t.Fatalf("%s %v", arn, err)
+		}
+		if arn, err = noAccount.LogGroupARN(t.Context(), "cwlv-0badc0de/other"); err != nil || !strings.HasSuffix(arn, ":log-group:cwlv-0badc0de/other") {
+			t.Fatalf("%s %v", arn, err)
+		}
+		_, err = noAccount.LogGroupARN(t.Context(), "cwlv-0badc0de/missing")
+		wantCode(t, err, ErrorCodeNotFound)
+		if len(lookup.callsOf("GetCallerIdentity")) != 0 || len(lookup.callsOf("DescribeLogGroups")) != 3 {
+			t.Fatal("unexpected calls")
+		}
+		down := newMockClient(t, newAWSMock(t).on("DescribeLogGroups", awsError(400, "ServiceUnavailableException", "down")), func(cfg *Config) { cfg.AccountID = "" })
+		_, err = down.StartLiveTail(t.Context(), LiveTailOptions{}, func(LiveTailEvent) {})
 		wantCode(t, err, ErrorCodeUnavailable)
 	})
 	for region, want := range map[string]string{"cn-north-1": "aws-cn", "us-gov-west-1": "aws-us-gov", "us-iso-east-1": "aws-iso",
@@ -234,5 +250,30 @@ func TestStartLiveTail(t *testing.T) {
 		if partitionOf(region) != want {
 			t.Errorf("%s", region)
 		}
+	}
+}
+
+func TestDetachBody(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://x", strings.NewReader(`{"a":1}`))
+	req.ContentLength = -1
+	detachBody(req)
+	if req.ContentLength != 7 {
+		t.Fatalf("length %d", req.ContentLength)
+	}
+	if b, _ := io.ReadAll(req.Body); string(b) != `{"a":1}` || req.Body.Close() != nil {
+		t.Fatalf("body %q", b)
+	}
+	if rc, err := req.GetBody(); err != nil || rc == nil {
+		t.Fatal(err)
+	}
+	failing, _ := http.NewRequest(http.MethodPost, "http://x", io.NopCloser(&errReader{err: errors.New("boom")}))
+	detachBody(failing)
+	if _, err := failing.Body.Read(make([]byte, 1)); err == nil || err.Error() != "boom" {
+		t.Fatal(err)
+	}
+	empty, _ := http.NewRequest(http.MethodGet, "http://x", nil)
+	detachBody(empty)
+	if empty.Body != nil {
+		t.Fatal("nil body changed")
 	}
 }

@@ -82,7 +82,7 @@ type Config struct {
 	// CLOUDWATCH_LOG_STREAM; default "<hostname>-<pid>-<random6>", created on demand).
 	LogStream string
 	// AccountID is the AWS account used to build log group ARNs for live tail
-	// (env …_ACCOUNT_ID); when empty it is looked up once with STS GetCallerIdentity.
+	// (env …_ACCOUNT_ID); when empty the ARN is looked up with DescribeLogGroups.
 	AccountID string
 	// MaxEventBytes is the per-event size policy in UTF-8 bytes (default 262,144;
 	// at most MaxEventBytesLimit; env …_MAX_EVENT_BYTES).

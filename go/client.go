@@ -15,7 +15,6 @@ import (
 	"time"
 
 	cwl "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 // defaultHealthTimeout bounds Health when RequestTimeout is longer.
@@ -28,7 +27,6 @@ const defaultHealthTimeout = 5 * time.Second
 type Client struct {
 	cfg       Config
 	api       API
-	sts       stsAPI
 	region    string
 	transport *http.Transport // nil when the caller supplied the SDK client
 	secrets   []string
@@ -39,7 +37,6 @@ type Client struct {
 	mu         sync.Mutex
 	logClients []*BatchingLogClient
 	sessions   map[*LiveTailSession]struct{}
-	accountID  string
 }
 
 // NewClient validates cfg, builds the AWS SDK client (or uses cfg.SDKClient)
@@ -71,12 +68,10 @@ func newClient(ctx context.Context, cfg Config) (*Client, error) {
 		return nil, err
 	}
 	c := &Client{
-		cfg:       cfg,
-		api:       parts.api,
-		sts:       parts.sts,
-		region:    parts.region,
-		accountID: cfg.AccountID,
-		sessions:  map[*LiveTailSession]struct{}{},
+		cfg:      cfg,
+		api:      parts.api,
+		region:   parts.region,
+		sessions: map[*LiveTailSession]struct{}{},
 	}
 	if cfg.SDKClient == nil {
 		c.transport = parts.transport
@@ -238,30 +233,6 @@ func (c *Client) Close() error {
 		}
 	})
 	return firstErr
-}
-
-// account returns the AWS account id (config, else STS GetCallerIdentity, cached).
-func (c *Client) account(ctx context.Context) (string, error) {
-	c.mu.Lock()
-	id := c.accountID
-	c.mu.Unlock()
-	if id != "" {
-		return id, nil
-	}
-	if c.sts == nil {
-		return "", ConfigError("accountId is required to build log group ARNs (GROW_AWS_CLOUDWATCH_LOGS_ACCOUNT_ID)")
-	}
-	out, err := c.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-	if err != nil {
-		return "", c.mapError("getCallerIdentity", err)
-	}
-	if out.Account == nil || *out.Account == "" {
-		return "", &Error{Code: ErrorCodeUnavailable, Message: "getCallerIdentity: no account in the response"}
-	}
-	c.mu.Lock()
-	c.accountID = *out.Account
-	c.mu.Unlock()
-	return *out.Account, nil
 }
 
 func ptr[T any](v T) *T { return &v }

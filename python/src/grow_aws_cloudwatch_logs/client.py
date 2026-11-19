@@ -26,14 +26,8 @@ from datetime import datetime, timedelta
 from types import TracebackType
 from typing import Any, Literal, TypeVar
 
-import aioboto3
 import boto3
 import botocore.session
-from aiobotocore.credentials import (
-    AioAssumeRoleCredentialFetcher,
-    AioDeferredRefreshableCredentials,
-)
-from aiobotocore.session import AioSession
 from botocore.credentials import AssumeRoleCredentialFetcher, DeferredRefreshableCredentials
 
 from ._aws_errors import map_aws_error
@@ -41,6 +35,7 @@ from ._core import (
     CancelledError,
     CancelToken,
     CloudWatchLogsError,
+    ConfigError,
     HealthStatus,
     TimeoutError,
     UnavailableError,
@@ -845,6 +840,17 @@ class AsyncCloudWatchLogsClient(_Base):
     # ------------------------------------------------------------------ SDK plumbing
 
     async def _build(self, probe: bool) -> Any:
+        try:
+            import aioboto3  # noqa: PLC0415 - optional dependency (extra "async")
+            from aiobotocore.credentials import (  # noqa: PLC0415
+                AioAssumeRoleCredentialFetcher,
+                AioDeferredRefreshableCredentials,
+            )
+            from aiobotocore.session import AioSession  # noqa: PLC0415
+        except ImportError:  # pragma: no cover - the test environment installs the extra
+            raise ConfigError(
+                "config: the async client needs aioboto3; install grow-aws-cloudwatch-logs[async]"
+            ) from None
         bs = AioSession(profile=self.config.profile)
         session = aioboto3.Session(botocore_session=bs, **self._session_kwargs())
         if self.config.role_arn is not None:
