@@ -1,6 +1,6 @@
 {
   "name": "@grow-codes/aws-cloudwatch-logs",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Grow Codes SDK for Amazon CloudWatch Logs (TypeScript)",
   "keywords": [
     "aws-cloudwatch-logs",

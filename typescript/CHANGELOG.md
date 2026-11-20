@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/grow-codes-packages/aws-cloudwatch-logs/compare/typescript-v0.1.1...typescript-v0.2.0) (2026-11-20)
+
+
+### Features
+
+* sync aws-cloudwatch-logs to sdk-kit 0.4.0 (foundation API) ([#16](https://github.com/grow-codes-packages/aws-cloudwatch-logs/issues/16)) ([7cedb80](https://github.com/grow-codes-packages/aws-cloudwatch-logs/commit/7cedb800c5ca1deb9636167f90e71a182b549ad7))
+
 ## [0.1.1](https://github.com/grow-codes-packages/aws-cloudwatch-logs/compare/typescript-v0.1.0...typescript-v0.1.1) (2026-11-19)
 
 
