@@ -15,7 +15,7 @@ documentation = "https://docs.rs/grow-aws-cloudwatch-logs"
 readme = "README.md"
 keywords = ["grow-codes", "aws", "cloudwatch", "logs", "sdk"]
 categories = ["api-bindings", "asynchronous"]
-include = ["src/**/*.rs", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
+include = ["src/**/*.rs", "Cargo.toml", "README.md", "AGENTS.md", "LICENSE", "NOTICE"]
 
 [lib]
 name = "grow_aws_cloudwatch_logs"
