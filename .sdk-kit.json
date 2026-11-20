@@ -449,6 +449,11 @@
       "generated": false
     },
     {
+      "path": "go/AGENTS.md",
+      "sha256": "216001ee3f8934d453a76d3508d6798c832284b9ba919d11852ac3646f1e109d",
+      "generated": true
+    },
+    {
       "path": "go/Makefile",
       "sha256": "2688681fade466988f9dd1abc0dcf9768eeb556cdeb57e1d4c0d000b1494c06a",
       "generated": true
@@ -511,6 +516,11 @@
     {
       "path": "go/core_hooks.go",
       "sha256": "255fe8e7bc7cbb05906fa765bfedf17156e6fac4ccd39660577bc1a00e9c167e",
+      "generated": true
+    },
+    {
+      "path": "go/core_key.go",
+      "sha256": "493d4388aeab46ff0c18fdea2d1efcd08b7c3432ceb272df66737a4a5fbed525",
       "generated": true
     },
     {
@@ -614,6 +624,31 @@
       "generated": true
     },
     {
+      "path": "go/logging_connect.go",
+      "sha256": "b4ab73d90baf3cbdc134d954262dab20e529d0a81ceeb0f15dc754c3f5f67bd7",
+      "generated": false
+    },
+    {
+      "path": "go/logging_connect_test.go",
+      "sha256": "96ff231053b1a1d12c396787caa834a04ccfa34e068dfa83ad2408e7e1117f40",
+      "generated": false
+    },
+    {
+      "path": "go/logging_http.go",
+      "sha256": "1cc7ca2e1dad81265a6a46714fd10b79689f811b4a001c8b1024c2a26ca07fba",
+      "generated": true
+    },
+    {
+      "path": "go/logging_init.go",
+      "sha256": "858a29626330c56536fa704bce2793ed06cdfc03ec06dbca502b2304ff5227d5",
+      "generated": true
+    },
+    {
+      "path": "go/logging_init_test.go",
+      "sha256": "4b6e74cedcfa11b5cc33c87cd06846726252da3cb5a1835acc12a30fc7f0a585",
+      "generated": true
+    },
+    {
       "path": "go/logging_json.go",
       "sha256": "323b6735dcf9249329c5048d0792e710b84a0e6ec4dfe7e161830b8c040a8426",
       "generated": true
@@ -685,7 +720,7 @@
     },
     {
       "path": "go/version.go",
-      "sha256": "f5943ad739861cf1e05d2417516582890b28074bcc7e41d4ecb9f12b8f5828c2",
+      "sha256": "ed01fc099502c268e51db8bfb3b962d27a12a59234f55b39d79784ffd3eb2d8b",
       "generated": false
     },
     {
@@ -756,6 +791,11 @@
     {
       "path": "java/src/main/java/codes/grow/packages/cloudwatchlogs/CloudWatchLogsConfig.java",
       "sha256": "908bb4b2ce88ebb805b14d4044a291f987d58e6b90940d6d5c3024ba4c67226e",
+      "generated": false
+    },
+    {
+      "path": "java/src/main/java/codes/grow/packages/cloudwatchlogs/LogConnect.java",
+      "sha256": "4a6760bf31f2198176c1cb1f6b8995591a5615829243a93bab2d0bb29e54068d",
       "generated": false
     },
     {
@@ -1024,8 +1064,18 @@
       "generated": true
     },
     {
+      "path": "java/src/main/java/codes/grow/packages/cloudwatchlogs/logging/LoggingInit.java",
+      "sha256": "eb13072343c1fdc23954243dd281bf5834896363ead76bc1cef29df49d8af15c",
+      "generated": true
+    },
+    {
       "path": "java/src/main/java/codes/grow/packages/cloudwatchlogs/logging/RedactionProcessor.java",
       "sha256": "57d5bb30ed8a15c05c105e06093be5178792fa81a8342f5e44bba7fbdce43db5",
+      "generated": true
+    },
+    {
+      "path": "java/src/main/java/codes/grow/packages/cloudwatchlogs/logging/RequestLoggingFilter.java",
+      "sha256": "92ecda6e4118b02e1efb91c157237f2bfab9417a63f90c9332dac34a463b1a31",
       "generated": true
     },
     {
@@ -1149,6 +1199,11 @@
       "generated": true
     },
     {
+      "path": "java/src/main/resources/META-INF/grow/aws-cloudwatch-logs/AGENTS.md",
+      "sha256": "7620821221f2918d73a7c92c82b5ca38cc26b26534722fe81cf32e9caa2c6aa3",
+      "generated": true
+    },
+    {
       "path": "java/src/main/resources/codes/grow/packages/cloudwatchlogs/core/sdk.properties",
       "sha256": "e5a4448ae983575bacb28063813f68610082f38e35416a800c297459037534f5",
       "generated": true
@@ -1156,6 +1211,11 @@
     {
       "path": "java/src/test/java/codes/grow/packages/cloudwatchlogs/CloudWatchLogsClientTest.java",
       "sha256": "b15d93194ddbbd2d5b58f5dba8a3d8034de9a58dc4fa6963962a76d79d9b3b0b",
+      "generated": false
+    },
+    {
+      "path": "java/src/test/java/codes/grow/packages/cloudwatchlogs/LogConnectTest.java",
+      "sha256": "751aabdbe49e62c22d57a3ad708972a4d06bc7bec886c4b817e2d8b71fc11fa0",
       "generated": false
     },
     {
@@ -1216,6 +1276,11 @@
     {
       "path": "java/src/test/java/codes/grow/packages/cloudwatchlogs/logging/LoggingConformanceTest.java",
       "sha256": "ea11a1f0408d4bd567b394497eb6ae7e595f8218bfab2178c0fe2e67bf0f6574",
+      "generated": true
+    },
+    {
+      "path": "java/src/test/java/codes/grow/packages/cloudwatchlogs/logging/LoggingInitTest.java",
+      "sha256": "6be72e43f7f11a13cdba7cf4943634e7ce55b396035620f67f1ec40b55a68790",
       "generated": true
     },
     {
@@ -1294,13 +1359,18 @@
       "generated": false
     },
     {
+      "path": "python/src/grow_aws_cloudwatch_logs/AGENTS.md",
+      "sha256": "8bfc2f649de7bd9b003fe745d0310058368a05ea0aec1d993346dda359e0d172",
+      "generated": true
+    },
+    {
       "path": "python/src/grow_aws_cloudwatch_logs/__init__.py",
       "sha256": "4267b90fe62ddfed82d7d1a8e797ce0c64188876bbec7e760096f65767ad0f58",
       "generated": false
     },
     {
       "path": "python/src/grow_aws_cloudwatch_logs/_core/__init__.py",
-      "sha256": "1586677bf94ba3eac47e5b4285cfa8445e1ec4bc7d8df7969b142208bae4a107",
+      "sha256": "3f731c671b19f0c4056a449282b5ac1c65e663326110c8662b5233f3d5f76487",
       "generated": true
     },
     {
@@ -1355,12 +1425,12 @@
     },
     {
       "path": "python/src/grow_aws_cloudwatch_logs/_core/useragent.py",
-      "sha256": "dd3b6ca10826dca7b0307ce236a348d15df96766002119e34c1c1806f77ea746",
+      "sha256": "141afb0955b806b618d9f8fb486ce3d9c723bd47ab186b815300d80d556e0bf4",
       "generated": true
     },
     {
       "path": "python/src/grow_aws_cloudwatch_logs/_logging/__init__.py",
-      "sha256": "b234ab3cbc776dd4592b1895c87c9df170a56e888ac6625deb51add907dd24d5",
+      "sha256": "b38b109152c8e56e5ff1ceffffd39f5e02c9f17dee0556d6b3834a7c623fcfa6",
       "generated": true
     },
     {
@@ -1384,6 +1454,16 @@
       "generated": true
     },
     {
+      "path": "python/src/grow_aws_cloudwatch_logs/_logging/_init.py",
+      "sha256": "c8c4786e71dbde2912277f42dea9e951999dbd5e2fb521d46428ae19c9e09606",
+      "generated": true
+    },
+    {
+      "path": "python/src/grow_aws_cloudwatch_logs/_logging/_middleware.py",
+      "sha256": "6dba4f4e9cc7ac52cbb391c3c56f84c7b20fa6a8bea174c8f2ebf8ce6abd952a",
+      "generated": true
+    },
+    {
       "path": "python/src/grow_aws_cloudwatch_logs/_logging/_model.py",
       "sha256": "35d8fd13402f094defa50a034803c42577e0f795ac7e57083f011640119cbd25",
       "generated": true
@@ -1400,7 +1480,7 @@
     },
     {
       "path": "python/src/grow_aws_cloudwatch_logs/_version.py",
-      "sha256": "a77fa54f51fdf50ebdb72c3a3172a1bc4dbc18af2125c9b46a337b7947d33a8e",
+      "sha256": "a11810e895d992f15fba03f7762bcb249fe4aa86f155931c9af0a176d1a86cfb",
       "generated": false
     },
     {
@@ -1411,6 +1491,11 @@
     {
       "path": "python/src/grow_aws_cloudwatch_logs/config.py",
       "sha256": "f75539e83bd3b017524bb9e77dbe6452adf5cd3418fe8e3165fe6a9ade967380",
+      "generated": false
+    },
+    {
+      "path": "python/src/grow_aws_cloudwatch_logs/logging_connect.py",
+      "sha256": "e053af1f667d8f65bc69a358194f6e43fde185a6af53f92656873c5c0df04073",
       "generated": false
     },
     {
@@ -1504,6 +1589,16 @@
       "generated": true
     },
     {
+      "path": "python/tests/test_logging_connect.py",
+      "sha256": "f742fae96110b03af45a0c0d48bf13168dec4454200f079103cfeccd506af50c",
+      "generated": false
+    },
+    {
+      "path": "python/tests/test_logging_init.py",
+      "sha256": "a60e551f00e0f881e3a74453e63ed49202c6f461076632f3f3df6d6ac82bebd7",
+      "generated": true
+    },
+    {
       "path": "python/tests/test_logging_model.py",
       "sha256": "173d8ccc27775f712ebe0bacee960625525ecd7e0d6c4b5f5f214359e6a2ece7",
       "generated": true
@@ -1537,6 +1632,11 @@
       "path": "rust/.gitignore",
       "sha256": "44e19e795df0e74663b0affde31f9aec4e08ec88787e680b404381b33134987a",
       "generated": false
+    },
+    {
+      "path": "rust/AGENTS.md",
+      "sha256": "133090ec2212226faac8cb66e7ff2f14a3145b7071abeb0d04e5a529b1605433",
+      "generated": true
     },
     {
       "path": "rust/Cargo.toml",
@@ -1684,13 +1784,18 @@
       "generated": true
     },
     {
+      "path": "rust/src/logging/init.rs",
+      "sha256": "4ca602992ad3de07b4f935465499ef2607b2212eda0bf53ed347905aee60740e",
+      "generated": true
+    },
+    {
       "path": "rust/src/logging/layer.rs",
       "sha256": "b77d70c12cc9f6491c952854435aeb6fc6ac133019f63f3244ddc37a3d58e434",
       "generated": true
     },
     {
       "path": "rust/src/logging/mod.rs",
-      "sha256": "716da6fb05ddb5b0e536aaa34fab5e8df5eee392c826660c81008aa9f59d2fc9",
+      "sha256": "aa9c7c299b9763f7b40aa3453a3b2ca057de0f2aad70736f15448d6329fe83fb",
       "generated": true
     },
     {
@@ -1819,6 +1924,11 @@
       "generated": true
     },
     {
+      "path": "rust/tests/logging_init.rs",
+      "sha256": "df4cfef38f2e378b2bc624c1261d944d5dc26088dea2c71940c2b74c4df02b47",
+      "generated": true
+    },
+    {
       "path": "rust/tests/logging_query.rs",
       "sha256": "ccd4af8a8e443118536a231c71ee082ebd542e93664d2b86cad6d30d0c9e8701",
       "generated": true
@@ -1852,6 +1962,11 @@
       "path": "typescript/.prettierrc.json",
       "sha256": "ac5868af5fec64d1f0285340fd1b9f3536e387a9bd626d9e87ff6fb1098905b1",
       "generated": false
+    },
+    {
+      "path": "typescript/AGENTS.md",
+      "sha256": "a6c3c8429cb36c758981c4d94d211dcff6caa57e671c254b81fe27802e59959f",
+      "generated": true
     },
     {
       "path": "typescript/Makefile",
@@ -1925,7 +2040,7 @@
     },
     {
       "path": "typescript/src/core/env.ts",
-      "sha256": "53b59a0ddf81da25ec109ee5781694ef281e0058e715120fbc6614fbaba8f9a2",
+      "sha256": "3093319cd5e0a5a47647361bafa669ddb7c4f20a56cc218a132431410a265f76",
       "generated": true
     },
     {
@@ -1960,7 +2075,7 @@
     },
     {
       "path": "typescript/src/core/redaction.ts",
-      "sha256": "e8f5d0f2b92ac102a89b914f72925c87a981f7bbaf3288b828243a0b7c97a7ac",
+      "sha256": "444a623e58e2c2bfc9803b5a2eff5d38c3ec89560f5b65c3dbf6029289bd4b70",
       "generated": true
     },
     {
@@ -1975,12 +2090,17 @@
     },
     {
       "path": "typescript/src/core/version.ts",
-      "sha256": "ad930fdc157790c604de4886bb2687197305ea0baf2d324e2c97c36476fb919b",
+      "sha256": "5ac889c30a6577ce8ac529bfe1effc6f5a6bee38ad7e0775ca46a2a6fc07b003",
       "generated": true
     },
     {
       "path": "typescript/src/index.ts",
       "sha256": "d60ada6f1e01f6b5104cdb75015be93d37c228086cc5523aacd7cf314434a1db",
+      "generated": false
+    },
+    {
+      "path": "typescript/src/logging-connect.ts",
+      "sha256": "2d2591cf45397be58f211436e5bb75cbc9d84091e2c1a7ca73ee7d2f498cf9bb",
       "generated": false
     },
     {
@@ -1995,7 +2115,12 @@
     },
     {
       "path": "typescript/src/logging/index.ts",
-      "sha256": "6b0cca90aebdba42f3bb6b50ff03c20dd4c0cce5d59ab9b4144b077f0fd93b2d",
+      "sha256": "43f8d36affdda4911ec08ed9043078fcdb77b919f1706af5bc1b6724c9d22a05",
+      "generated": true
+    },
+    {
+      "path": "typescript/src/logging/init.ts",
+      "sha256": "6ca9bc473329164c23b4c8f7f0e8e99b079ee5aca30f702045aaaf6e99c191b0",
       "generated": true
     },
     {
@@ -2021,6 +2146,11 @@
     {
       "path": "typescript/src/logging/redaction.ts",
       "sha256": "63166e5621d39f49b635dc9757d39c28d985bc8e90c676b366ab8f81800ebb87",
+      "generated": true
+    },
+    {
+      "path": "typescript/src/logging/request.ts",
+      "sha256": "876bcd0c06489e4bf680eaf9a1b44ff8028dcca27148148d9fb4ab9d61509f29",
       "generated": true
     },
     {
@@ -2085,7 +2215,7 @@
     },
     {
       "path": "typescript/test/core/env.test.ts",
-      "sha256": "501c439daad972015c42ea21a1ec71970f112b789d7c798df771556ff0d02844",
+      "sha256": "a7196f20f3e5f9be72e4070601c65625757dfbb4d02af6d6682e0198912d1412",
       "generated": true
     },
     {
@@ -2100,7 +2230,7 @@
     },
     {
       "path": "typescript/test/core/redaction.test.ts",
-      "sha256": "34474db1c2b43b846bcc19714f2f496e36643cd6c02bf39432001b8e094836f9",
+      "sha256": "c674982d1221d3ea06865cb4b71cc117e02978f7898bd0d685f456ccf17bafae",
       "generated": true
     },
     {
@@ -2129,6 +2259,11 @@
       "generated": false
     },
     {
+      "path": "typescript/test/logging-connect.test.ts",
+      "sha256": "d7bd71d32be8a42870461db4909ea8528e2e7c9bc12ab132c35cac2049126246",
+      "generated": false
+    },
+    {
       "path": "typescript/test/logging/adapters.test.ts",
       "sha256": "7d9d38d1895dba391ee661233d28402675d70c6acaaea8eda54c73d029582d3a",
       "generated": true
@@ -2146,6 +2281,11 @@
     {
       "path": "typescript/test/logging/conformance.test.ts",
       "sha256": "076e6f771d6472253ae69b6902e4f30181e6fd71e43622da490abf9b4a0bbae1",
+      "generated": true
+    },
+    {
+      "path": "typescript/test/logging/init.test.ts",
+      "sha256": "d720fc3284849c31699cbc176ee246862d0b71fba76a1877df0d136e3a2cf6e9",
       "generated": true
     },
     {
